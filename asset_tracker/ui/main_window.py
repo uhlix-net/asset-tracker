@@ -62,6 +62,7 @@ class MainWindow(QMainWindow):
 
         # Signals
         self._toolbar.add_clicked.connect(self._on_add)
+        self._toolbar.edit_clicked.connect(self._on_edit)
         self._toolbar.delete_clicked.connect(self._on_delete)
         self._toolbar.backup_clicked.connect(self._on_backup)
         self._toolbar.print_clicked.connect(self._on_print)
@@ -75,11 +76,11 @@ class MainWindow(QMainWindow):
         self._asset_list.load_assets(assets)
 
     def _on_asset_selected(self, asset) -> None:
-        self._toolbar.set_delete_enabled(True)
+        self._toolbar.set_asset_actions_enabled(True)
         self._preview.show_asset(asset)
 
     def _on_selection_cleared(self) -> None:
-        self._toolbar.set_delete_enabled(False)
+        self._toolbar.set_asset_actions_enabled(False)
         self._preview.clear()
 
     def _on_search(self, text: str) -> None:
@@ -90,6 +91,19 @@ class MainWindow(QMainWindow):
         dlg = AssetFormDialog(self._db, self)
         if dlg.exec():
             self._refresh_assets()
+
+    def _on_edit(self) -> None:
+        asset = self._asset_list.get_selected_asset()
+        if not asset:
+            return
+        from .edit_asset_form import EditAssetFormDialog
+        dlg = EditAssetFormDialog(self._db, asset, self)
+        if dlg.exec():
+            self._refresh_assets()
+            # Re-select the same asset to refresh the preview panel
+            updated = self._db.get_asset_by_id(asset.id)
+            if updated:
+                self._preview.show_asset(updated)
 
     def _on_delete(self) -> None:
         asset = self._asset_list.get_selected_asset()
@@ -107,7 +121,7 @@ class MainWindow(QMainWindow):
             storage.delete_asset_files(asset)
             self._db.delete_asset(asset.id)
             self._preview.clear()
-            self._toolbar.set_delete_enabled(False)
+            self._toolbar.set_asset_actions_enabled(False)
             self._refresh_assets()
 
     def _on_backup(self) -> None:
