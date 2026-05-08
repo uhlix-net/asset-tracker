@@ -17,7 +17,7 @@ class AssetList(QTableWidget):
     delete_requested = pyqtSignal(list)   # emits list[Asset]
 
     _COLUMNS = ["ID", "Name", "Category", "Purchase Date",
-                "Purchase Value", "Current Value", "Receipt?", "Date Added"]
+                "Purchase Price", "Current Value", "Receipt?", "Date Added"]
 
     def __init__(self, parent=None) -> None:
         super().__init__(0, len(self._COLUMNS), parent)

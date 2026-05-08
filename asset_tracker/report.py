@@ -65,7 +65,7 @@ def _title_page(ss, total_assets: int, purchase_total: float | None,
 
     rows = [
         ["Total Assets:", str(total_assets)],
-        ["Total Purchase Value:",
+        ["Total Purchase Price:",
          f"${purchase_total:,.2f}" if purchase_total is not None else "—"],
         ["Total Current Value:",
          f"${current_total:,.2f}" if current_total is not None else "—"],
@@ -90,7 +90,7 @@ def _toc_page(ss, assets_with_files: list) -> list:
                 Spacer(1, 0.2 * inch)]
 
     header = [Paragraph(f"<b>{h}</b>", ss["Normal"]) for h in
-              ["ID", "Name", "Category", "Purchase Date", "Purchase Value",
+              ["ID", "Name", "Category", "Purchase Date", "Purchase Price",
                "Current Value", "Photos"]]
     rows = [header]
     for asset, files in assets_with_files:
@@ -143,7 +143,7 @@ def _asset_section(ss, asset: Asset, files: list[AssetFile]) -> list:
         ["Asset ID:", asset.id,         "Serial Number:", asset.serial_number or "—"],
         ["Name:",     asset.name,        "Model Number:",  asset.model_number or "—"],
         ["Category:", asset.category or "—", "Purchase Date:", asset.date_purchase or "—"],
-        ["Purchase Value:", asset.value_display,
+        ["Purchase Price:", asset.value_display,
          "Current Value:", asset.current_value_display],
         ["Receipt:", "Yes ✓" if has_receipt else "No",
          "Date Added:", asset.date_added[:10]],
