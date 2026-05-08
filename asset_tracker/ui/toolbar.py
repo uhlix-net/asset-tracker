@@ -5,6 +5,7 @@ from PyQt6.QtGui import QIcon
 
 class Toolbar(QWidget):
     add_clicked = pyqtSignal()
+    edit_clicked = pyqtSignal()
     delete_clicked = pyqtSignal()
     backup_clicked = pyqtSignal()
     print_clicked = pyqtSignal()
@@ -19,6 +20,11 @@ class Toolbar(QWidget):
         self._btn_add = QPushButton("+ Add Asset")
         self._btn_add.setFixedHeight(32)
         self._btn_add.clicked.connect(self.add_clicked)
+
+        self._btn_edit = QPushButton("Edit Asset")
+        self._btn_edit.setFixedHeight(32)
+        self._btn_edit.setEnabled(False)
+        self._btn_edit.clicked.connect(self.edit_clicked)
 
         self._btn_delete = QPushButton("Delete Asset")
         self._btn_delete.setFixedHeight(32)
@@ -46,12 +52,17 @@ class Toolbar(QWidget):
         self._search.textChanged.connect(self._debounce.start)
 
         layout.addWidget(self._btn_add)
+        layout.addWidget(self._btn_edit)
         layout.addWidget(self._btn_delete)
         layout.addWidget(self._btn_backup)
         layout.addWidget(self._btn_print)
         layout.addStretch()
         layout.addWidget(QLabel("Search:"))
         layout.addWidget(self._search)
+
+    def set_asset_actions_enabled(self, enabled: bool) -> None:
+        self._btn_edit.setEnabled(enabled)
+        self._btn_delete.setEnabled(enabled)
 
     def set_delete_enabled(self, enabled: bool) -> None:
         self._btn_delete.setEnabled(enabled)

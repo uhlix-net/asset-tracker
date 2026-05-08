@@ -104,10 +104,29 @@ class Database:
         assets = self.get_all_assets()
         return [(a, self.get_asset_files(a.id)) for a in assets]
 
+    def update_asset(self, asset: Asset) -> None:
+        self._conn.execute(
+            """UPDATE assets SET name=?, date_purchase=?, value_estimate=?,
+               has_receipt=?, notes=? WHERE id=?""",
+            (
+                asset.name,
+                asset.date_purchase,
+                asset.value_estimate,
+                1 if asset.has_receipt else 0,
+                asset.notes,
+                asset.id,
+            ),
+        )
+        self._conn.commit()
+
     def update_notes(self, asset_id: str, notes: str) -> None:
         self._conn.execute(
             "UPDATE assets SET notes = ? WHERE id = ?", (notes, asset_id)
         )
+        self._conn.commit()
+
+    def delete_asset_file(self, file_id: int) -> None:
+        self._conn.execute("DELETE FROM asset_files WHERE id = ?", (file_id,))
         self._conn.commit()
 
     def delete_asset(self, asset_id: str) -> None:
