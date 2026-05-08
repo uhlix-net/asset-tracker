@@ -250,7 +250,11 @@ def _title_page(ss, total_assets: int,
 
 # ── Table of contents ─────────────────────────────────────────────────────────
 def _toc_page(ss, assets_with_files: list) -> list:
-    els = [Paragraph("TABLE OF CONTENTS", ss["TOCHead"]), _rule(color=_NAVY)]
+    els = [
+        Paragraph("TABLE OF CONTENTS", ss["TOCHead"]),
+        _rule(color=_NAVY),
+        Spacer(1, 0.18 * inch),
+    ]
 
     header = [
         Paragraph("<b>Asset ID</b>", ss["FieldLabel"]),
@@ -312,6 +316,24 @@ def _category_divider(ss, category: str, count: int) -> list:
     return [tbl, Spacer(1, 0.2 * inch)]
 
 
+# ── PDF page renderer ─────────────────────────────────────────────────────────
+def _render_pdf_pages(path: pathlib.Path, encrypted: bool) -> list[io.BytesIO]:
+    """Render each page of a PDF to a PNG BytesIO for embedding in ReportLab."""
+    try:
+        import fitz  # pymupdf
+        data = storage.read_file_bytes(path, encrypted=encrypted)
+        doc = fitz.open(stream=data, filetype="pdf")
+        pages = []
+        for page in doc:
+            mat = fitz.Matrix(1.5, 1.5)       # ~108 DPI — clear at print size
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            pages.append(io.BytesIO(pix.tobytes("png")))
+        doc.close()
+        return pages
+    except Exception:
+        return []
+
+
 # ── Single asset record ───────────────────────────────────────────────────────
 def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
     images  = [f for f in files if f.file_type == "image"]
@@ -351,7 +373,6 @@ def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
         field("PURCHASE DATE",  asset.date_purchase or "—"),
         field("PURCHASE PRICE", asset.value_display),
         field("CURRENT VALUE",  asset.current_value_display),
-        field("RECEIPT ON FILE","Yes" if asset.has_receipt else "No"),
     ]
 
     def mini_table(rows):
@@ -438,8 +459,7 @@ def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
             photo_tbl.setStyle(TableStyle([
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("GRID", (0, 0), (-1, -1), 0.3, _RULE),
-                ("PADDING", (0, 0), (-1, -1), 4),
+                ("PADDING", (0, 0), (-1, -1), 6),
             ]))
             block.append(photo_tbl)
 
@@ -447,32 +467,40 @@ def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
     if receipt:
         block.append(Spacer(1, 0.1 * inch))
         block.append(Paragraph("SALES RECEIPT", ss["SectionHead"]))
-        block.append(Spacer(1, 0.04 * inch))
+        block.append(Spacer(1, 0.06 * inch))
         receipt_path = storage.get_stored_path(asset, receipt)
         ext = receipt_path.suffix.lower()
         if ext in IMAGE_EXTENSIONS:
             try:
-                rec_src = io.BytesIO(storage.read_file_bytes(receipt_path, encrypted=receipt.encrypted))
-                rec_img = Image(rec_src,
-                                width=3.5 * inch, height=3.5 * inch,
-                                kind="proportional")
-                rec_tbl = Table([[rec_img]],
-                                colWidths=[3.6 * inch])
-                rec_tbl.setStyle(TableStyle([
-                    ("ALIGN",   (0, 0), (-1, -1), "LEFT"),
-                    ("GRID",    (0, 0), (-1, -1), 0.3, _RULE),
-                    ("PADDING", (0, 0), (-1, -1), 4),
-                ]))
-                block.append(rec_tbl)
+                rec_src = io.BytesIO(
+                    storage.read_file_bytes(receipt_path, encrypted=receipt.encrypted)
+                )
+                block.append(Image(rec_src, width=_CONTENT_W, height=_CONTENT_W * 1.3,
+                                   kind="proportional"))
                 block.append(Paragraph(receipt.file_name, ss["Caption"]))
             except Exception:
+                block.append(Paragraph(f"Receipt on file: {receipt.file_name}",
+                                       ss["FieldValue"]))
+        elif ext == ".pdf":
+            pages = _render_pdf_pages(receipt_path, receipt.encrypted)
+            if pages:
+                for i, buf in enumerate(pages):
+                    try:
+                        block.append(Image(buf, width=_CONTENT_W,
+                                           height=_CONTENT_W * 1.35,
+                                           kind="proportional"))
+                        if len(pages) > 1:
+                            block.append(Paragraph(
+                                f"Page {i + 1} of {len(pages)} — {receipt.file_name}",
+                                ss["Caption"]))
+                        else:
+                            block.append(Paragraph(receipt.file_name, ss["Caption"]))
+                    except Exception:
+                        pass
+            else:
                 block.append(Paragraph(
-                    f"Receipt on file: {receipt.file_name}", ss["FieldValue"]))
-        else:
-            block.append(Paragraph(
-                f"Receipt on file: {receipt.file_name}  "
-                f"(PDF — open the original file to view)",
-                ss["FieldValue"]))
+                    f"PDF receipt on file: {receipt.file_name} (could not render)",
+                    ss["FieldValue"]))
 
     # ── Record separator ──────────────────────────────────────────────────────
     block.append(Spacer(1, 0.14 * inch))

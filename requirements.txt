@@ -3,3 +3,4 @@ Pillow>=10.0.0
 reportlab>=4.0.0
 pyzipper>=0.3.6
 pywin32>=306; sys_platform == "win32"
+pymupdf>=1.23.0

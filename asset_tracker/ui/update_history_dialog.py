@@ -8,6 +8,19 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.3",
+        "PDF report: TOC spacing, borderless photos, embedded receipts",
+        [
+            "Added whitespace below the Table of Contents heading rule "
+            "for improved readability",
+            "Removed borders from asset photo grid — images now display "
+            "without surrounding lines",
+            "Receipt images are now embedded inline in the report instead "
+            "of listing 'Yes/No'; PDF receipts are rendered page-by-page "
+            "and inserted directly into the document",
+        ],
+    ),
+    (
         "1.1.2",
         "DPAPI encryption for photos and receipts; export and help",
         [
