@@ -16,7 +16,7 @@ def export_csv(assets: list[Asset], dest: str | pathlib.Path) -> None:
 
     fieldnames = [
         "Asset ID", "Name", "Category", "Serial Number", "Model Number",
-        "Purchase Date", "Purchase Value", "Current Value",
+        "Purchase Date", "Purchase Price", "Current Value",
         "Receipt on File", "Date Added", "Notes",
     ]
 
@@ -31,7 +31,7 @@ def export_csv(assets: list[Asset], dest: str | pathlib.Path) -> None:
                 "Serial Number": a.serial_number,
                 "Model Number": a.model_number,
                 "Purchase Date": a.date_purchase or "",
-                "Purchase Value": f"{a.value_estimate:.2f}" if a.value_estimate is not None else "",
+                "Purchase Price": f"{a.value_estimate:.2f}" if a.value_estimate is not None else "",
                 "Current Value": f"{a.current_value:.2f}" if a.current_value is not None else "",
                 "Receipt on File": "Yes" if a.has_receipt else "No",
                 "Date Added": a.date_added[:10],

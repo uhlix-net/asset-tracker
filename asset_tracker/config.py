@@ -2,7 +2,7 @@ import os
 import pathlib
 
 APP_NAME = "AssetTracker"
-APP_VERSION = "1.0.5"
+APP_VERSION = "1.0.6"
 
 if os.name == "nt":
     _base = pathlib.Path(os.environ["APPDATA"])
@@ -34,5 +34,7 @@ ASSET_CATEGORIES = [
     "Garage",
     "Basement / Attic",
     "Outdoor / Patio",
+    "Firearms",
+    "Personal Effects",
     "Other",
 ]

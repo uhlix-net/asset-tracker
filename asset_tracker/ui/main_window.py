@@ -165,7 +165,7 @@ class MainWindow(QMainWindow):
         self._lbl_count.setText(f"  {totals['count']} asset{'s' if totals['count'] != 1 else ''}")
         parts = []
         if totals["purchase_total"] is not None:
-            parts.append(f"Purchase: ${totals['purchase_total']:,.2f}")
+            parts.append(f"Purchase Price: ${totals['purchase_total']:,.2f}")
         if totals["current_total"] is not None:
             parts.append(f"Current: ${totals['current_total']:,.2f}")
         self._lbl_values.setText("  |  ".join(parts) + "  " if parts else "")

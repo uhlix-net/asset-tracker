@@ -81,7 +81,7 @@ class AssetFormDialog(QDialog):
         hl2.setContentsMargins(0, 0, 0, 0)
         hl2.addWidget(self._value)
         hl2.addWidget(self._no_value)
-        form.addRow("Purchase Value:", val_row)
+        form.addRow("Purchase Price:", val_row)
 
         self._current_value = QDoubleSpinBox()
         self._current_value.setPrefix("$ ")

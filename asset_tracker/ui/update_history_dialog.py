@@ -48,7 +48,7 @@ HISTORY = [
         "Initial release",
         [
             "Track household assets with photos, sales receipts, purchase date, "
-            "purchase value, and current/appraised value",
+            "purchase price, and current/appraised value",
             "Assign assets to categories (Living Room, Kitchen, Garage, etc.) "
             "with serial number and model number fields",
             "Search assets by name and filter by category",

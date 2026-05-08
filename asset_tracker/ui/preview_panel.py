@@ -69,7 +69,7 @@ class PreviewPanel(QWidget):
         form.addRow("Name:", self._lbl_name)
         form.addRow("Category:", self._lbl_category)
         form.addRow("Purchase Date:", self._lbl_purchase)
-        form.addRow("Purchase Value:", self._lbl_value)
+        form.addRow("Purchase Price:", self._lbl_value)
         form.addRow("Current Value:", self._lbl_current)
         form.addRow("Serial Number:", self._lbl_serial)
         form.addRow("Model Number:", self._lbl_model)
