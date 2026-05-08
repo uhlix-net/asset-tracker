@@ -3,9 +3,9 @@ import os
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QFileDialog,
-    QInputDialog, QLineEdit, QStatusBar, QScrollArea, QSizePolicy, QFrame,
+    QInputDialog, QLineEdit, QStatusBar, QSizePolicy,
 )
-from PyQt6.QtCore import Qt, QSettings, QSize
+from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QAction
 
 from ..database import Database
@@ -85,68 +85,51 @@ class MainWindow(QMainWindow):
     # ── Central UI ───────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
-        # ── Inner content widget (fixed size — does not stretch with window) ──
-        self._inner = QWidget()
-        self._inner.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        inner_layout = QVBoxLayout(self._inner)
-        inner_layout.setContentsMargins(0, 0, 0, 0)
-        inner_layout.setSpacing(0)
-
-        self._toolbar = Toolbar()
-        # Toolbar fixed height; buttons and search stay in place
-        self._toolbar.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        inner_layout.addWidget(self._toolbar)
-
-        line = QWidget()
-        line.setFixedHeight(1)
-        line.setStyleSheet("background: #d0d0d0;")
-        inner_layout.addWidget(line)
-
-        self._splitter = QSplitter(Qt.Orientation.Horizontal)
-        # Splitter stays at its initial size; both panels are fixed
-        self._splitter.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-
-        self._asset_list = AssetList()
-        self._asset_list.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-        self._preview = PreviewPanel(self._db)
-        self._preview.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-
-        self._splitter.addWidget(self._asset_list)
-        self._splitter.addWidget(self._preview)
-        self._splitter.setStretchFactor(0, 0)
-        self._splitter.setStretchFactor(1, 0)
-        self._splitter.setSizes([720, 380])
-
-        if self._settings.contains("splitter"):
-            self._splitter.restoreState(self._settings.value("splitter"))
-
-        inner_layout.addWidget(self._splitter)
-
-        # ── Scroll area wraps the inner widget ────────────────────────────────
-        # When the window is enlarged the inner content stays anchored at the
-        # top-left; scrollbars appear only if the window is made smaller.
-        scroll = QScrollArea()
-        scroll.setWidget(self._inner)
-        scroll.setWidgetResizable(False)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-
         central = QWidget()
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
-        root.addWidget(scroll)
+
+        # Toolbar — anchored at top, full window width
+        self._toolbar = Toolbar()
+        root.addWidget(self._toolbar)
+
+        # Divider line — always spans the full window width
+        line = QWidget()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background: #d0d0d0;")
+        root.addWidget(line)
+
+        # Splitter — 50/50 horizontal split, anchored to the top
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Expanding horizontally (fills full width) but Preferred vertically
+        # so it keeps its natural height and does not stretch downward when
+        # the window is made taller.
+        self._splitter.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
+
+        self._asset_list = AssetList()
+        self._preview = PreviewPanel(self._db)
+        self._splitter.addWidget(self._asset_list)
+        self._splitter.addWidget(self._preview)
+
+        # Equal stretch factors give each panel exactly 50% of window width
+        self._splitter.setStretchFactor(0, 1)
+        self._splitter.setStretchFactor(1, 1)
+
+        if self._settings.contains("splitter"):
+            self._splitter.restoreState(self._settings.value("splitter"))
+        else:
+            half = self.width() // 2
+            self._splitter.setSizes([half, half])
+
+        root.addWidget(self._splitter)
+        # Stretch absorbs any extra vertical space, keeping all content
+        # pinned to the top when the window is enlarged vertically.
+        root.addStretch(1)
 
         # Toolbar signals
         self._toolbar.add_clicked.connect(self._on_add)
