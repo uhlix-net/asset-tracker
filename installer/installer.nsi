@@ -11,7 +11,7 @@ Unicode True
 ; ── Definitions ─────────────────────────────────────────────
 !define APP_NAME      "Asset Tracker"
 ; NOTE: keep APP_VERSION in sync with asset_tracker/config.py APP_VERSION
-!define APP_VERSION   "1.1.0"
+!define APP_VERSION   "1.1.1"
 !define APP_PUBLISHER "uhlix-net"
 !define UNINST_KEY    "Software\Microsoft\Windows\CurrentVersion\Uninstall\AssetTracker"
 !define PYTHON_URL    "https://www.python.org/ftp/python/3.12.9/python-3.12.9-amd64.exe"
@@ -27,6 +27,8 @@ ShowInstDetails       show
 SetCompressor         lzma
 
 ; ── MUI Settings ────────────────────────────────────────────
+!define MUI_ICON   "..\resources\app_icon.ico"
+!define MUI_UNICON "..\resources\app_icon.ico"
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TITLE "Welcome to ${APP_NAME} Setup"
 !define MUI_WELCOMEPAGE_TEXT \
@@ -207,6 +209,10 @@ Section "${APP_NAME}" SecMain
     SetOutPath "$INSTDIR\asset_tracker\ui"
     File "..\asset_tracker\ui\*.py"
 
+    CreateDirectory "$INSTDIR\resources"
+    SetOutPath "$INSTDIR\resources"
+    File "..\resources\app_icon.ico"
+
     ; ── VBScript launcher (suppresses console window) ──────
     SetOutPath "$INSTDIR"
     FileOpen $0 "$INSTDIR\launch.vbs" w
@@ -243,12 +249,12 @@ Section "${APP_NAME}" SecMain
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
     CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" \
         "$R7" '"$INSTDIR\launch.vbs"' \
-        "" 0 SW_SHOWNORMAL "" "${APP_NAME}"
+        "$INSTDIR\resources\app_icon.ico" 0 SW_SHOWNORMAL "" "${APP_NAME}"
     CreateShortcut "$SMPROGRAMS\${APP_NAME}\Uninstall ${APP_NAME}.lnk" \
         "$INSTDIR\Uninstall.exe"
     CreateShortcut "$DESKTOP\${APP_NAME}.lnk" \
         "$R7" '"$INSTDIR\launch.vbs"' \
-        "" 0 SW_SHOWNORMAL "" "${APP_NAME}"
+        "$INSTDIR\resources\app_icon.ico" 0 SW_SHOWNORMAL "" "${APP_NAME}"
 
     ; ── Add/Remove Programs registry entries ───────────────
     WriteRegStr   HKLM "${UNINST_KEY}" "DisplayName"     "${APP_NAME}"
@@ -284,6 +290,8 @@ Section "Uninstall"
     RMDir /r "$INSTDIR\.venv"
     Delete "$INSTDIR\main.py"
     Delete "$INSTDIR\requirements.txt"
+    Delete "$INSTDIR\resources\app_icon.ico"
+    RMDir  "$INSTDIR\resources"
     Delete "$INSTDIR\launch.vbs"
     RMDir /r "$INSTDIR\asset_tracker"
     Delete "$INSTDIR\Uninstall.exe"

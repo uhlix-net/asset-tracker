@@ -151,7 +151,8 @@ def _sig_table(label: str) -> Table:
 def _title_page(ss, total_assets: int,
                 purchase_total: float | None,
                 current_total: float | None,
-                doc_date: str) -> list:
+                doc_date: str,
+                insurer_info: dict | None = None) -> list:
     els = []
     els.append(Spacer(1, 1.2 * inch))
 
@@ -162,6 +163,31 @@ def _title_page(ss, total_assets: int,
     els.append(Paragraph("Prepared for Insurance Claim Purposes", ss["DocSubtitle"]))
     els.append(HRFlowable(width="100%", thickness=1.5,
                            color=_NAVY, spaceBefore=10, spaceAfter=20))
+
+    # Insurer / claim info (shown when provided)
+    ii = insurer_info or {}
+    if any(ii.get(k) for k in ("company", "policy_number", "claim_number", "date_of_loss")):
+        claim_rows = []
+        if ii.get("company"):
+            claim_rows.append(["Insurance Company:", ii["company"]])
+        if ii.get("policy_number"):
+            claim_rows.append(["Policy Number:", ii["policy_number"]])
+        if ii.get("claim_number"):
+            claim_rows.append(["Claim Number:", ii["claim_number"]])
+        if ii.get("date_of_loss"):
+            claim_rows.append(["Date of Loss:", ii["date_of_loss"]])
+        ctbl = Table(claim_rows, colWidths=[2.0 * inch, 4.1 * inch])
+        ctbl.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("TEXTCOLOR", (0, 0), (0, -1), _SLATE),
+            ("TEXTCOLOR", (1, 0), (1, -1), _BLACK),
+            ("BACKGROUND", (0, 0), (-1, -1), _LIGHT_BG),
+            ("GRID", (0, 0), (-1, -1), 0.4, _RULE),
+            ("PADDING", (0, 0), (-1, -1), 7),
+        ]))
+        els.append(ctbl)
+        els.append(Spacer(1, 0.15 * inch))
 
     # Summary table
     rows = [
@@ -453,10 +479,11 @@ def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
     return [KeepTogether(block[:4])] + block[4:]
 
 
-# ── Public entry point ────────────────────────────────────────────────────────
+# ── Public entry points ───────────────────────────────────────────────────────
 def generate_report(
     assets_with_files: list[tuple[Asset, list[AssetFile]]],
     output_path: str | pathlib.Path,
+    insurer_info: dict | None = None,
 ) -> None:
     today = date.today().strftime("%B %d, %Y")
     output_path = str(output_path)
@@ -483,7 +510,7 @@ def generate_report(
 
     story = []
     story += _title_page(ss, len(assets_with_files),
-                         purchase_total, current_total, today)
+                         purchase_total, current_total, today, insurer_info)
     story += _toc_page(ss, assets_with_files)
 
     # Group by category; page break between categories
@@ -500,4 +527,58 @@ def generate_report(
         for asset, files in items:
             story += _asset_record(ss, asset, files)
 
+    doc.build(story)
+
+
+def generate_single_asset_report(
+    asset: Asset,
+    files: list[AssetFile],
+    output_path: str | pathlib.Path,
+    insurer_info: dict | None = None,
+) -> None:
+    """Generate a one-page record for a single asset."""
+    today = date.today().strftime("%B %d, %Y")
+    output_path = str(output_path)
+
+    doc = _LegalDoc(
+        output_path,
+        pagesize=LETTER,
+        leftMargin=_MARGIN,
+        rightMargin=_MARGIN,
+        topMargin=_MARGIN,
+        bottomMargin=0.85 * inch,
+        doc_date=today,
+    )
+
+    ss = _styles()
+    story = []
+
+    # Compact header — title, optional insurer info, no TOC
+    story.append(HRFlowable(width="100%", thickness=1.5, color=_NAVY, spaceAfter=8))
+    story.append(Paragraph("ASSET RECORD", ss["DocTitle"]))
+    story.append(Paragraph("Personal Property Inventory — Insurance Claim Purposes",
+                            ss["DocSubtitle"]))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=_NAVY,
+                             spaceBefore=8, spaceAfter=12))
+
+    ii = insurer_info or {}
+    if any(ii.get(k) for k in ("company", "policy_number", "claim_number", "date_of_loss")):
+        claim_rows = []
+        if ii.get("company"):       claim_rows.append(["Insurance Company:", ii["company"]])
+        if ii.get("policy_number"): claim_rows.append(["Policy Number:",     ii["policy_number"]])
+        if ii.get("claim_number"):  claim_rows.append(["Claim Number:",      ii["claim_number"]])
+        if ii.get("date_of_loss"):  claim_rows.append(["Date of Loss:",      ii["date_of_loss"]])
+        ctbl = Table(claim_rows, colWidths=[2.0 * inch, 4.1 * inch])
+        ctbl.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("TEXTCOLOR", (0, 0), (0, -1), _SLATE),
+            ("BACKGROUND", (0, 0), (-1, -1), _LIGHT_BG),
+            ("GRID", (0, 0), (-1, -1), 0.4, _RULE),
+            ("PADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(ctbl)
+        story.append(Spacer(1, 0.1 * inch))
+
+    story += _asset_record(ss, asset, files)
     doc.build(story)

@@ -101,6 +101,10 @@ class PreviewPanel(QWidget):
         self._btn_open = QPushButton("Open Asset Folder")
         self._btn_open.clicked.connect(self._open_folder)
         layout.addWidget(self._btn_open)
+
+        self._btn_print = QPushButton("Print This Asset")
+        self._btn_print.clicked.connect(self._print_asset)
+        layout.addWidget(self._btn_print)
         layout.addStretch()
 
     def show_asset(self, asset: Asset, files: list[AssetFile] | None = None) -> None:
@@ -133,6 +137,7 @@ class PreviewPanel(QWidget):
         self._notes.blockSignals(False)
         self._notes.setEnabled(True)
         self._btn_open.setEnabled(True)
+        self._btn_print.setEnabled(True)
 
         self._load_photos(asset, files)
 
@@ -181,6 +186,7 @@ class PreviewPanel(QWidget):
         self._notes.blockSignals(False)
         self._notes.setEnabled(False)
         self._btn_open.setEnabled(False)
+        self._btn_print.setEnabled(False)
         while self._photos_grid.count():
             item = self._photos_grid.takeAt(0)
             if item.widget():
@@ -189,6 +195,41 @@ class PreviewPanel(QWidget):
     def _save_notes(self) -> None:
         if self._asset:
             self._db.update_notes(self._asset.id, self._notes.toPlainText())
+
+    def _print_asset(self) -> None:
+        if not self._asset:
+            return
+        import os, subprocess
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from ..ui.insurer_info_dialog import InsurerInfoDialog, load_insurer_info
+        from .. import report
+
+        dest, _ = QFileDialog.getSaveFileName(
+            self,
+            f"Save Asset Record — {self._asset.name}",
+            f"Asset_{self._asset.id}_{self._asset.name[:30].replace(' ', '_')}.pdf",
+            "PDF Files (*.pdf)",
+        )
+        if not dest:
+            return
+
+        insurer_info = load_insurer_info()
+        files = self._db.get_asset_files(self._asset.id)
+        try:
+            report.generate_single_asset_report(
+                self._asset, files, dest, insurer_info
+            )
+            reply = QMessageBox.information(
+                self, "Asset Record Saved", f"Saved to:\n{dest}\n\nOpen file?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                if os.name == "nt":
+                    os.startfile(dest)
+                else:
+                    subprocess.Popen(["xdg-open", dest])
+        except Exception as e:
+            QMessageBox.critical(self, "Print Failed", str(e))
 
     def _open_receipt(self, _href: str) -> None:
         if not self._receipt_path:
