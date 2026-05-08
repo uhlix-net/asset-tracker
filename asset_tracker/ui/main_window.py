@@ -54,6 +54,12 @@ class MainWindow(QMainWindow):
 
         file_menu.addSeparator()
 
+        act_sync = QAction("Sync to Cloud (Firebase)...", self)
+        act_sync.triggered.connect(self._on_sync)
+        file_menu.addAction(act_sync)
+
+        file_menu.addSeparator()
+
         act_backup = QAction("Create Backup...", self)
         act_backup.triggered.connect(self._on_backup)
         file_menu.addAction(act_backup)
@@ -317,6 +323,10 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Restore Failed",
                                  f"Could not restore backup:\n{e}")
+
+    def _on_sync(self) -> None:
+        from .sync_dialog import SyncDialog
+        SyncDialog(self._db, self).exec()
 
     def _on_export_files(self) -> None:
         dest = QFileDialog.getExistingDirectory(

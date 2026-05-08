@@ -1,0 +1,5 @@
+package net.uhlix.assettracker
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()

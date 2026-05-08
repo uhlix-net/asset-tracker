@@ -8,6 +8,22 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.4",
+        "Firebase cloud sync and Android companion app",
+        [
+            "File → Sync to Cloud (Firebase): all assets and files are "
+            "AES-256-GCM encrypted with a sync password before upload — "
+            "Google only ever stores ciphertext",
+            "PBKDF2-HMAC-SHA256 (600 000 iterations) derives the sync key "
+            "from the password — the same algorithm runs on Android",
+            "Android companion app: sign in with Firebase credentials + "
+            "sync password to browse your full asset inventory, view photos "
+            "and receipts, and see all asset details",
+            "GitHub Actions workflow automatically builds the Android APK "
+            "on every push to main (see FIREBASE_SETUP.md for instructions)",
+        ],
+    ),
+    (
         "1.1.3",
         "PDF report: TOC spacing, borderless photos, embedded receipts",
         [
