@@ -3,13 +3,27 @@ import pathlib
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QFormLayout, QLabel, QPushButton,
-    QTextEdit, QScrollArea, QGridLayout, QFrame, QSizePolicy,
+    QTextEdit, QScrollArea, QGridLayout, QFrame,
 )
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QCursor
 
 from ..models import Asset, AssetFile
 from .. import storage
+
+
+class _ClickableLabel(QLabel):
+    def __init__(self, path: pathlib.Path, name: str, parent=None):
+        super().__init__(parent)
+        self._path = path
+        self._name = name
+        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.setToolTip(f"Click to view full size: {name}")
+
+    def mousePressEvent(self, event):
+        from .image_viewer import ImageViewer
+        dlg = ImageViewer(self._path, self._name, self.window())
+        dlg.exec()
 
 
 class PreviewPanel(QWidget):
@@ -21,7 +35,6 @@ class PreviewPanel(QWidget):
         self._notes_timer.setSingleShot(True)
         self._notes_timer.setInterval(500)
         self._notes_timer.timeout.connect(self._save_notes)
-
         self._build_ui()
         self.clear()
 
@@ -39,28 +52,34 @@ class PreviewPanel(QWidget):
         layout = QVBoxLayout(container)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # Metadata form
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         self._lbl_id = QLabel()
         self._lbl_name = QLabel()
         self._lbl_name.setWordWrap(True)
+        self._lbl_category = QLabel()
         self._lbl_purchase = QLabel()
         self._lbl_value = QLabel()
+        self._lbl_current = QLabel()
+        self._lbl_serial = QLabel()
+        self._lbl_model = QLabel()
         self._lbl_receipt = QLabel()
         self._lbl_added = QLabel()
         form.addRow("Asset ID:", self._lbl_id)
         form.addRow("Name:", self._lbl_name)
+        form.addRow("Category:", self._lbl_category)
         form.addRow("Purchase Date:", self._lbl_purchase)
-        form.addRow("Est. Value:", self._lbl_value)
+        form.addRow("Purchase Value:", self._lbl_value)
+        form.addRow("Current Value:", self._lbl_current)
+        form.addRow("Serial Number:", self._lbl_serial)
+        form.addRow("Model Number:", self._lbl_model)
         form.addRow("Receipt:", self._lbl_receipt)
         form.addRow("Date Added:", self._lbl_added)
         layout.addLayout(form)
 
-        # Photos section
-        self._photos_label = QLabel("Photos")
-        self._photos_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
-        layout.addWidget(self._photos_label)
+        photos_lbl = QLabel("Photos  (click to view full size)")
+        photos_lbl.setStyleSheet("font-weight: bold; margin-top: 8px; color: #1a5276;")
+        layout.addWidget(photos_lbl)
 
         self._photos_grid = QGridLayout()
         self._photos_grid.setSpacing(4)
@@ -68,7 +87,6 @@ class PreviewPanel(QWidget):
         photos_container.setLayout(self._photos_grid)
         layout.addWidget(photos_container)
 
-        # Notes
         notes_lbl = QLabel("Notes")
         notes_lbl.setStyleSheet("font-weight: bold; margin-top: 8px;")
         layout.addWidget(notes_lbl)
@@ -77,11 +95,9 @@ class PreviewPanel(QWidget):
         self._notes.textChanged.connect(self._notes_timer.start)
         layout.addWidget(self._notes)
 
-        # Actions
         self._btn_open = QPushButton("Open Asset Folder")
         self._btn_open.clicked.connect(self._open_folder)
         layout.addWidget(self._btn_open)
-
         layout.addStretch()
 
     def show_asset(self, asset: Asset, files: list[AssetFile] | None = None) -> None:
@@ -91,22 +107,24 @@ class PreviewPanel(QWidget):
 
         self._lbl_id.setText(asset.id)
         self._lbl_name.setText(asset.name)
+        self._lbl_category.setText(asset.category or "—")
         self._lbl_purchase.setText(asset.date_purchase or "—")
         self._lbl_value.setText(asset.value_display)
+        self._lbl_current.setText(asset.current_value_display)
+        self._lbl_serial.setText(asset.serial_number or "—")
+        self._lbl_model.setText(asset.model_number or "—")
         self._lbl_receipt.setText("Receipt on file ✓" if asset.has_receipt else "No receipt")
         self._lbl_added.setText(asset.date_added[:10])
 
         self._notes.blockSignals(True)
         self._notes.setPlainText(asset.notes)
         self._notes.blockSignals(False)
-
-        self._btn_open.setEnabled(True)
         self._notes.setEnabled(True)
+        self._btn_open.setEnabled(True)
 
         self._load_photos(asset, files)
 
     def _load_photos(self, asset: Asset, files: list[AssetFile]) -> None:
-        # Clear existing thumbnails
         while self._photos_grid.count():
             item = self._photos_grid.takeAt(0)
             if item.widget():
@@ -122,18 +140,15 @@ class PreviewPanel(QWidget):
         for i, af in enumerate(images):
             path = storage.get_stored_path(asset, af)
             pixmap = storage.generate_thumbnail(path, size=(160, 160))
-            lbl = QLabel()
+            lbl = _ClickableLabel(path, af.file_name)
             lbl.setFixedSize(164, 164)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setStyleSheet("border: 1px solid #ccc;")
-            lbl.setToolTip(af.file_name)
+            lbl.setStyleSheet("border: 1px solid #aaa;")
             if pixmap:
                 lbl.setPixmap(
-                    pixmap.scaled(
-                        160, 160,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
+                    pixmap.scaled(160, 160,
+                                  Qt.AspectRatioMode.KeepAspectRatio,
+                                  Qt.TransformationMode.SmoothTransformation)
                 )
             else:
                 lbl.setText(af.file_name)
@@ -143,10 +158,10 @@ class PreviewPanel(QWidget):
 
     def clear(self) -> None:
         self._asset = None
-        for lbl in (
-            self._lbl_id, self._lbl_name, self._lbl_purchase,
-            self._lbl_value, self._lbl_receipt, self._lbl_added,
-        ):
+        for lbl in (self._lbl_id, self._lbl_name, self._lbl_category,
+                    self._lbl_purchase, self._lbl_value, self._lbl_current,
+                    self._lbl_serial, self._lbl_model, self._lbl_receipt,
+                    self._lbl_added):
             lbl.clear()
         self._notes.blockSignals(True)
         self._notes.clear()
@@ -165,11 +180,10 @@ class PreviewPanel(QWidget):
     def _open_folder(self) -> None:
         if not self._asset:
             return
-        import os
+        import os, subprocess
         d = storage.asset_dir(self._asset)
         if d.exists():
             if os.name == "nt":
                 os.startfile(str(d))
             else:
-                import subprocess
                 subprocess.Popen(["xdg-open", str(d)])

@@ -1,15 +1,19 @@
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QLineEdit, QLabel
+from PyQt6.QtWidgets import (
+    QWidget, QHBoxLayout, QPushButton, QLineEdit, QLabel, QComboBox,
+)
 from PyQt6.QtCore import pyqtSignal, QTimer
-from PyQt6.QtGui import QIcon
+from ..config import ASSET_CATEGORIES
 
 
 class Toolbar(QWidget):
     add_clicked = pyqtSignal()
     edit_clicked = pyqtSignal()
     delete_clicked = pyqtSignal()
+    duplicate_clicked = pyqtSignal()
     backup_clicked = pyqtSignal()
     print_clicked = pyqtSignal()
     search_changed = pyqtSignal(str)
+    category_changed = pyqtSignal(str)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -21,12 +25,17 @@ class Toolbar(QWidget):
         self._btn_add.setFixedHeight(32)
         self._btn_add.clicked.connect(self.add_clicked)
 
-        self._btn_edit = QPushButton("Edit Asset")
+        self._btn_edit = QPushButton("Edit")
         self._btn_edit.setFixedHeight(32)
         self._btn_edit.setEnabled(False)
         self._btn_edit.clicked.connect(self.edit_clicked)
 
-        self._btn_delete = QPushButton("Delete Asset")
+        self._btn_duplicate = QPushButton("Duplicate")
+        self._btn_duplicate.setFixedHeight(32)
+        self._btn_duplicate.setEnabled(False)
+        self._btn_duplicate.clicked.connect(self.duplicate_clicked)
+
+        self._btn_delete = QPushButton("Delete")
         self._btn_delete.setFixedHeight(32)
         self._btn_delete.setEnabled(False)
         self._btn_delete.clicked.connect(self.delete_clicked)
@@ -39,33 +48,44 @@ class Toolbar(QWidget):
         self._btn_print.setFixedHeight(32)
         self._btn_print.clicked.connect(self.print_clicked)
 
+        self._category = QComboBox()
+        self._category.setFixedHeight(32)
+        self._category.setMinimumWidth(140)
+        self._category.addItem("All Categories", "")
+        for cat in ASSET_CATEGORIES:
+            self._category.addItem(cat, cat)
+        self._category.currentIndexChanged.connect(
+            lambda: self.category_changed.emit(self._category.currentData())
+        )
+
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search by name...")
         self._search.setClearButtonEnabled(True)
         self._search.setFixedHeight(32)
-        self._search.setMaximumWidth(280)
+        self._search.setMaximumWidth(240)
 
         self._debounce = QTimer(self)
         self._debounce.setSingleShot(True)
         self._debounce.setInterval(300)
-        self._debounce.timeout.connect(self._emit_search)
+        self._debounce.timeout.connect(lambda: self.search_changed.emit(self._search.text().strip()))
         self._search.textChanged.connect(self._debounce.start)
 
         layout.addWidget(self._btn_add)
         layout.addWidget(self._btn_edit)
+        layout.addWidget(self._btn_duplicate)
         layout.addWidget(self._btn_delete)
         layout.addWidget(self._btn_backup)
         layout.addWidget(self._btn_print)
         layout.addStretch()
+        layout.addWidget(self._category)
         layout.addWidget(QLabel("Search:"))
         layout.addWidget(self._search)
 
     def set_asset_actions_enabled(self, enabled: bool) -> None:
         self._btn_edit.setEnabled(enabled)
+        self._btn_duplicate.setEnabled(enabled)
         self._btn_delete.setEnabled(enabled)
 
+    # kept for backward compatibility
     def set_delete_enabled(self, enabled: bool) -> None:
         self._btn_delete.setEnabled(enabled)
-
-    def _emit_search(self) -> None:
-        self.search_changed.emit(self._search.text().strip())

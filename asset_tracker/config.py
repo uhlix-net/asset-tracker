@@ -23,3 +23,16 @@ IMAGE_EXTENSIONS = {
 RECEIPT_EXTENSIONS = {
     ".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif",
 }
+
+ASSET_CATEGORIES = [
+    "Living Room",
+    "Bedroom",
+    "Kitchen",
+    "Dining Room",
+    "Bathroom",
+    "Office / Study",
+    "Garage",
+    "Basement / Attic",
+    "Outdoor / Patio",
+    "Other",
+]
