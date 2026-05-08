@@ -82,6 +82,10 @@ class MainWindow(QMainWindow):
         act_about.triggered.connect(self._on_about)
         help_menu.addAction(act_about)
 
+        act_history = QAction("Update History", self)
+        act_history.triggered.connect(self._on_update_history)
+        help_menu.addAction(act_history)
+
     # ── Central UI ───────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
@@ -349,6 +353,10 @@ class MainWindow(QMainWindow):
     def _on_about(self) -> None:
         from .about_dialog import AboutDialog
         AboutDialog(self).exec()
+
+    def _on_update_history(self) -> None:
+        from .update_history_dialog import UpdateHistoryDialog
+        UpdateHistoryDialog(self).exec()
 
     # ── Close / persist ───────────────────────────────────────────────────────
 

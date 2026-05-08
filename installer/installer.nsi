@@ -17,7 +17,7 @@ Unicode True
 !define PYTHON_MIN    "3.10"
 
 ; ── General ─────────────────────────────────────────────────
-Name                  "${APP_NAME} ${APP_VERSION}"
+Name                  "${APP_NAME}"
 OutFile               "AssetTracker_Setup.exe"
 InstallDir            "$PROGRAMFILES64\AssetTracker"
 InstallDirRegKey HKLM "${UNINST_KEY}" "InstallLocation"
