@@ -30,13 +30,17 @@ jobs:
           cache: true
 
       # Write the real google-services.json from a GitHub secret.
-      # To configure: base64-encode your real file and store as secret
-      # GOOGLE_SERVICES_JSON in Settings → Secrets → Actions.
+      # To configure: store the JSON contents as secret GOOGLE_SERVICES_JSON
+      # in Settings → Secrets → Actions.  If the secret is absent the
+      # placeholder file committed to the repo is used (build succeeds but
+      # the app will not connect to Firebase).
       - name: Write google-services.json
-        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' \
-            > android_app/android/app/google-services.json
+          if [ -n "$GSJ" ]; then
+            echo "$GSJ" > android_app/android/app/google-services.json
+          fi
 
       - name: Flutter pub get
         working-directory: android_app
