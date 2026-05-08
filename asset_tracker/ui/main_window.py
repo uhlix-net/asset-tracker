@@ -330,13 +330,20 @@ class MainWindow(QMainWindow):
 
     def _on_print(self) -> None:
         from .. import report
+        from .insurer_info_dialog import InsurerInfoDialog
+
+        dlg = InsurerInfoDialog(self)
+        if dlg.exec() != dlg.DialogCode.Accepted:
+            return
+        insurer_info = dlg.insurer_info()
+
         dest, _ = QFileDialog.getSaveFileName(
             self, "Save PDF Report", "Asset_Inventory_Report.pdf", "PDF Files (*.pdf)")
         if not dest:
             return
         try:
             data = self._db.get_all_assets_with_files()
-            report.generate_report(data, dest)
+            report.generate_report(data, dest, insurer_info)
             reply = QMessageBox.information(
                 self, "Report Generated", f"Report saved to:\n{dest}\n\nOpen file?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

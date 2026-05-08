@@ -8,6 +8,21 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.1",
+        "App icon, insurer info on reports, single-asset PDF",
+        [
+            "App icon (navy \"AT\" logo) now appears in the taskbar, "
+            "window title bar, Start Menu shortcut, and Desktop shortcut",
+            "Insurer details dialog (insurance company, policy number, "
+            "claim number, date of loss) shown before generating the full "
+            "report — details appear on the cover page and are remembered "
+            "between sessions",
+            "\"Print This Asset\" button in the asset details panel generates "
+            "a one-page PDF record for the selected asset, including photos "
+            "and receipt, with insurer info pre-filled",
+        ],
+    ),
+    (
         "1.1.0",
         "UI improvements — icons, thumbnails, sort indicators, empty state",
         [
