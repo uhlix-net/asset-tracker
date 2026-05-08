@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import tkinter; print\\('tkinter OK'\\)\")",
+      "Bash(python3 -c \"import sqlite3; print\\('sqlite3 OK'\\)\")",
+      "Bash(python3 -c \"import pathlib; print\\('pathlib OK'\\)\")",
+      "Bash(pip3 install *)",
+      "Bash(python3 -c \"import sys; print\\(sys.version_info\\)\")",
+      "Bash(git init *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git merge --no-ff feature/project-setup -m ' *)",
+      "Bash(git merge --no-ff feature/storage -m ' *)",
+      "Bash(git merge --no-ff feature/ui-shell -m ' *)",
+      "Bash(git merge --no-ff feature/add-asset -m ' *)",
+      "Bash(git merge --no-ff feature/backup -m ' *)",
+      "Bash(git merge --no-ff feature/print-report -m ' *)",
+      "Bash(python3 *)",
+      "Bash(gh auth *)",
+      "Bash(curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg)",
+      "Bash(sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg)",
+      "Bash(sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg)",
+      "Bash(dpkg --print-architecture)",
+      "Bash(echo \"deb [arch=$\\(dpkg --print-architecture\\) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main\")",
+      "Bash(sudo tee /etc/apt/sources.list.d/github-cli.list)",
+      "Bash(sudo apt-get update -qq)",
+      "Bash(sudo apt-get install gh -y -qq)",
+      "Bash(chmod 600 *)",
+      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Accept: application/vnd.github+json' 'https://api.github.com/user/repos?per_page=20&sort=updated')",
+      "Bash(curl -sI -H 'Authorization: Bearer __TRACKED_VAR__' https://api.github.com/user)",
+      "Bash(curl -si -H 'Authorization: Bearer __TRACKED_VAR__' https://api.github.com/user)",
+      "Bash(curl -s -w '\\\\nHTTP:%{http_code}' -X POST -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Accept: application/vnd.github+json' https://api.github.com/repos/uhlix-net/asset-tracker/pulls -d '{ *)",
+      "Bash(curl -si -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Accept: application/vnd.github+json' https://api.github.com/repos/uhlix-net/asset-tracker)",
+      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Accept: application/vnd.github+json' https://api.github.com/orgs/uhlix-net)",
+      "Bash(git pull *)"
+    ]
+  }
+}

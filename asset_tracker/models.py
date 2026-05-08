@@ -14,8 +14,12 @@ def slugify(text: str) -> str:
 class Asset:
     id: str                      # Zero-padded 5-digit string: "00001"
     name: str
+    category: str                # e.g. "Living Room", "Kitchen"
     date_purchase: str | None    # "YYYY-MM-DD" or None
-    value_estimate: float | None
+    value_estimate: float | None # Purchase / estimated value
+    current_value: float | None  # Current / appraised value
+    serial_number: str           # Optional serial number
+    model_number: str            # Optional model number
     has_receipt: bool
     date_added: str              # ISO-8601 UTC
     notes: str = ""
@@ -29,6 +33,12 @@ class Asset:
         if self.value_estimate is None:
             return "—"
         return f"${self.value_estimate:,.2f}"
+
+    @property
+    def current_value_display(self) -> str:
+        if self.current_value is None:
+            return "—"
+        return f"${self.current_value:,.2f}"
 
 
 @dataclass
