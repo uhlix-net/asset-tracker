@@ -10,7 +10,7 @@ Unicode True
 
 ; ── Definitions ─────────────────────────────────────────────
 !define APP_NAME      "Asset Tracker"
-!define APP_VERSION   "1.0.2"
+!define APP_VERSION   "1.0.10"
 !define APP_PUBLISHER "uhlix-net"
 !define UNINST_KEY    "Software\Microsoft\Windows\CurrentVersion\Uninstall\AssetTracker"
 !define PYTHON_URL    "https://www.python.org/ftp/python/3.12.9/python-3.12.9-amd64.exe"
