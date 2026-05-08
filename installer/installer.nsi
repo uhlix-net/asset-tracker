@@ -192,7 +192,8 @@ Section "${APP_NAME}" SecMain
     FileOpen $0 "$INSTDIR\launch.vbs" w
     FileWrite $0 "Set ws = CreateObject($\"WScript.Shell$\")$\r$\n"
     FileWrite $0 "ws.CurrentDirectory = $\"$INSTDIR$\"$\r$\n"
-    FileWrite $0 "ws.Run $\"$INSTDIR\.venv\Scripts\pythonw.exe$\" & $\" $\" & $\"$INSTDIR\main.py$\", 0$\r$\n"
+    ; Wrap each path in Chr(34) so spaces in Program Files are handled correctly
+    FileWrite $0 "ws.Run Chr(34) & $\"$INSTDIR\.venv\Scripts\pythonw.exe$\" & Chr(34) & $\" $\" & Chr(34) & $\"$INSTDIR\main.py$\" & Chr(34), 0$\r$\n"
     FileClose $0
 
     ; ── Create virtual environment ─────────────────────────
@@ -218,14 +219,17 @@ Section "${APP_NAME}" SecMain
     ${EndIf}
 
     ; ── Start Menu and Desktop shortcuts ───────────────────
+    ; Use full path to wscript.exe to avoid PATH lookup issues
+    StrCpy $R7 "$WINDIR\System32\wscript.exe"
+
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
     CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" \
-        "wscript.exe" '"$INSTDIR\launch.vbs"' \
+        "$R7" '"$INSTDIR\launch.vbs"' \
         "" 0 SW_SHOWNORMAL "" "${APP_NAME}"
     CreateShortcut "$SMPROGRAMS\${APP_NAME}\Uninstall ${APP_NAME}.lnk" \
         "$INSTDIR\Uninstall.exe"
     CreateShortcut "$DESKTOP\${APP_NAME}.lnk" \
-        "wscript.exe" '"$INSTDIR\launch.vbs"' \
+        "$R7" '"$INSTDIR\launch.vbs"' \
         "" 0 SW_SHOWNORMAL "" "${APP_NAME}"
 
     ; ── Add/Remove Programs registry entries ───────────────
