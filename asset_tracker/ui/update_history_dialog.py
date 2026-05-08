@@ -8,6 +8,15 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.5",
+        "Bug fix — GitHub Actions Android build workflow",
+        [
+            "Fixed a workflow error: secrets context cannot be used in "
+            "step if conditions; moved the check inside the run script "
+            "using a bash conditional instead",
+        ],
+    ),
+    (
         "1.1.4",
         "Firebase cloud sync and Android companion app",
         [
