@@ -8,6 +8,24 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.0.7",
+        "Receipt link and UI improvements",
+        [
+            "Receipt field in the asset details panel is now a clickable link "
+            "that opens the receipt file in the default viewer",
+            "Receipt checkmark (✓) is now displayed in green",
+        ],
+    ),
+    (
+        "1.0.6",
+        "New categories and field rename",
+        [
+            'Added "Firearms" and "Personal Effects" asset categories',
+            'Renamed "Purchase Value" to "Purchase Price" throughout the app '
+            "(forms, list, preview panel, PDF report, CSV export, status bar)",
+        ],
+    ),
+    (
         "1.0.5",
         "Installer and Help improvements",
         [

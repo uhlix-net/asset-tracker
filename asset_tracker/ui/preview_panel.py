@@ -64,6 +64,9 @@ class PreviewPanel(QWidget):
         self._lbl_serial = QLabel()
         self._lbl_model = QLabel()
         self._lbl_receipt = QLabel()
+        self._lbl_receipt.setOpenExternalLinks(False)
+        self._lbl_receipt.linkActivated.connect(self._open_receipt)
+        self._receipt_path: str | None = None
         self._lbl_added = QLabel()
         form.addRow("Asset ID:", self._lbl_id)
         form.addRow("Name:", self._lbl_name)
@@ -113,7 +116,16 @@ class PreviewPanel(QWidget):
         self._lbl_current.setText(asset.current_value_display)
         self._lbl_serial.setText(asset.serial_number or "—")
         self._lbl_model.setText(asset.model_number or "—")
-        self._lbl_receipt.setText("Receipt on file ✓" if asset.has_receipt else "No receipt")
+        receipt_file = next((f for f in files if f.file_type == "receipt"), None)
+        if asset.has_receipt and receipt_file:
+            self._receipt_path = str(storage.get_stored_path(asset, receipt_file))
+            self._lbl_receipt.setText(
+                '<a href="open" style="color: #27ae60; text-decoration: none;">'
+                'Receipt on file <span style="color: #27ae60; font-weight: bold;">✓</span></a>'
+            )
+        else:
+            self._receipt_path = None
+            self._lbl_receipt.setText("No receipt")
         self._lbl_added.setText(asset.date_added[:10])
 
         self._notes.blockSignals(True)
@@ -158,6 +170,7 @@ class PreviewPanel(QWidget):
 
     def clear(self) -> None:
         self._asset = None
+        self._receipt_path = None
         for lbl in (self._lbl_id, self._lbl_name, self._lbl_category,
                     self._lbl_purchase, self._lbl_value, self._lbl_current,
                     self._lbl_serial, self._lbl_model, self._lbl_receipt,
@@ -176,6 +189,17 @@ class PreviewPanel(QWidget):
     def _save_notes(self) -> None:
         if self._asset:
             self._db.update_notes(self._asset.id, self._notes.toPlainText())
+
+    def _open_receipt(self, _href: str) -> None:
+        if not self._receipt_path:
+            return
+        import os, subprocess, pathlib
+        p = pathlib.Path(self._receipt_path)
+        if p.exists():
+            if os.name == "nt":
+                os.startfile(str(p))
+            else:
+                subprocess.Popen(["xdg-open", str(p)])
 
     def _open_folder(self) -> None:
         if not self._asset:
