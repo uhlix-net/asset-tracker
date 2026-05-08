@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         # Splitter — 50/50 horizontal split, anchored to top
         self._splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        self._asset_list = AssetList()
+        self._asset_list = AssetList(self._db)
         self._preview = PreviewPanel(self._db)
         self._splitter.addWidget(self._asset_list)
         self._splitter.addWidget(self._preview)

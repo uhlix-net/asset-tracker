@@ -8,6 +8,22 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.0",
+        "UI improvements — icons, thumbnails, sort indicators, empty state",
+        [
+            "Toolbar buttons now show icons (Add, Edit, Delete, Duplicate, "
+            "Backup, Print Report)",
+            "Asset table shows a 40×40 photo thumbnail in the first column "
+            "for quick visual identification",
+            "Column sort indicators (▲/▼) now appear on the active sort "
+            "column in the asset table",
+            "Empty-state message shown when no assets exist: "
+            "\"No assets yet — click Add Asset to get started\"",
+            "Installer version now reliably matches the app version in "
+            "Windows Settings → Apps → Installed Apps",
+        ],
+    ),
+    (
         "1.0.11",
         "TOC header readability; Update History v1.0.1 entry",
         [
