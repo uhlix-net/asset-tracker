@@ -131,8 +131,9 @@ Function DownloadAndInstallPython
         Abort
     ${EndIf}
 
-    DetailPrint "Installing Python 3.12 silently..."
-    ExecWait '"$TEMP\python_setup.exe" /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1 Include_tcltk=1' $R1
+    DetailPrint "Installing Python 3.12..."
+    ; /passive shows a progress bar dialog and completes without user interaction
+    ExecWait '"$TEMP\python_setup.exe" /passive InstallAllUsers=1 PrependPath=1 Include_pip=1 Include_tcltk=1' $R1
     Delete "$TEMP\python_setup.exe"
 
     ${If} $R1 != 0
