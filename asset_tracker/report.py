@@ -1,4 +1,5 @@
 from __future__ import annotations
+import io
 import pathlib
 from datetime import date
 from itertools import groupby
@@ -405,8 +406,9 @@ def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
         for af in images:
             path = storage.get_stored_path(asset, af)
             try:
+                img_src = io.BytesIO(storage.read_file_bytes(path, encrypted=af.encrypted))
                 cell_content = [
-                    Image(str(path), width=img_size, height=img_size,
+                    Image(img_src, width=img_size, height=img_size,
                           kind="proportional"),
                     Paragraph(af.file_name, ss["Caption"]),
                 ]
@@ -450,7 +452,8 @@ def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
         ext = receipt_path.suffix.lower()
         if ext in IMAGE_EXTENSIONS:
             try:
-                rec_img = Image(str(receipt_path),
+                rec_src = io.BytesIO(storage.read_file_bytes(receipt_path, encrypted=receipt.encrypted))
+                rec_img = Image(rec_src,
                                 width=3.5 * inch, height=3.5 * inch,
                                 kind="proportional")
                 rec_tbl = Table([[rec_img]],

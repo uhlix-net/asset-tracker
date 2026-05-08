@@ -147,8 +147,9 @@ class AssetList(QTableWidget):
             if not images:
                 return None
             from .. import storage
-            path = storage.get_stored_path(asset, images[0])
-            return storage.generate_thumbnail(path, size=(40, 40))
+            first = images[0]
+            path = storage.get_stored_path(asset, first)
+            return storage.generate_thumbnail(path, size=(40, 40), encrypted=first.encrypted)
         except Exception:
             return None
 

@@ -135,6 +135,14 @@ class AssetFormDialog(QDialog):
         btns.addStretch()
         layout.addLayout(btns)
 
+        enc_note = QLabel(
+            "🔒  Photos and receipts are encrypted on disk using Windows DPAPI.\n"
+            "    Use  File → Export Asset Files  to obtain unencrypted copies."
+        )
+        enc_note.setStyleSheet("color: #555; font-size: 10px;")
+        enc_note.setWordWrap(True)
+        layout.addWidget(enc_note)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
