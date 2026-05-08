@@ -49,3 +49,4 @@ class AssetFile:
     file_type: str               # "image" | "receipt"
     stored_name: str             # Filename inside asset's directory
     date_added: str              # ISO-8601 UTC
+    encrypted: bool = False      # True when stored with Windows DPAPI

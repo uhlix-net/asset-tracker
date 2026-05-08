@@ -13,16 +13,17 @@ from .. import storage
 
 
 class _ClickableLabel(QLabel):
-    def __init__(self, path: pathlib.Path, name: str, parent=None):
+    def __init__(self, path: pathlib.Path, name: str, encrypted: bool = False, parent=None):
         super().__init__(parent)
         self._path = path
         self._name = name
+        self._encrypted = encrypted
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(f"Click to view full size: {name}")
 
     def mousePressEvent(self, event):
         from .image_viewer import ImageViewer
-        dlg = ImageViewer(self._path, self._name, self.window())
+        dlg = ImageViewer(self._path, self._name, self._encrypted, self.window())
         dlg.exec()
 
 
@@ -156,8 +157,8 @@ class PreviewPanel(QWidget):
 
         for i, af in enumerate(images):
             path = storage.get_stored_path(asset, af)
-            pixmap = storage.generate_thumbnail(path, size=(160, 160))
-            lbl = _ClickableLabel(path, af.file_name)
+            pixmap = storage.generate_thumbnail(path, size=(160, 160), encrypted=af.encrypted)
+            lbl = _ClickableLabel(path, af.file_name, af.encrypted)
             lbl.setFixedSize(164, 164)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setStyleSheet("border: 1px solid #aaa;")

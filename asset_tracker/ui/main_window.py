@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import pathlib
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QFileDialog,
@@ -47,6 +48,10 @@ class MainWindow(QMainWindow):
         act_csv.triggered.connect(self._on_export_csv)
         file_menu.addAction(act_csv)
 
+        act_export_files = QAction("Export Asset Files...", self)
+        act_export_files.triggered.connect(self._on_export_files)
+        file_menu.addAction(act_export_files)
+
         file_menu.addSeparator()
 
         act_backup = QAction("Create Backup...", self)
@@ -77,6 +82,12 @@ class MainWindow(QMainWindow):
 
         # Help menu
         help_menu = menubar.addMenu("Help")
+
+        act_help = QAction(f"{APP_NAME} Help", self)
+        act_help.triggered.connect(self._on_help)
+        help_menu.addAction(act_help)
+
+        help_menu.addSeparator()
 
         act_about = QAction(f"About {APP_NAME}", self)
         act_about.triggered.connect(self._on_about)
@@ -307,6 +318,30 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Restore Failed",
                                  f"Could not restore backup:\n{e}")
 
+    def _on_export_files(self) -> None:
+        dest = QFileDialog.getExistingDirectory(
+            self, "Choose Export Folder", "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not dest:
+            return
+        try:
+            assets = self._db.get_all_assets()
+            count = storage.export_asset_files(assets, self._db, pathlib.Path(dest))
+            reply = QMessageBox.information(
+                self, "Export Complete",
+                f"Exported {count} file{'s' if count != 1 else ''} to:\n{dest}\n\nOpen folder?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                if os.name == "nt":
+                    os.startfile(dest)
+                else:
+                    import subprocess
+                    subprocess.Popen(["xdg-open", dest])
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", str(e))
+
     def _on_export_csv(self) -> None:
         dest, _ = QFileDialog.getSaveFileName(
             self, "Export to CSV", export.default_export_name(), "CSV Files (*.csv)")
@@ -356,6 +391,10 @@ class MainWindow(QMainWindow):
                     subprocess.Popen(["xdg-open", dest])
         except Exception as e:
             QMessageBox.critical(self, "Report Failed", str(e))
+
+    def _on_help(self) -> None:
+        from .help_dialog import HelpDialog
+        HelpDialog(self).exec()
 
     def _on_about(self) -> None:
         from .about_dialog import AboutDialog

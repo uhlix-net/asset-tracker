@@ -8,6 +8,21 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.2",
+        "DPAPI encryption for photos and receipts; export and help",
+        [
+            "All uploaded photos and receipt files are now encrypted on disk "
+            "using Windows DPAPI (tied to your Windows user account — "
+            "no password required, decryption is automatic)",
+            "File → Export Asset Files: decrypts and copies all files to a "
+            "folder you choose, for attaching to emails or claim submissions",
+            "Encryption reminder note added below the Add Photos button in "
+            "the Add Asset and Edit Asset dialogs",
+            "Help → AssetTracker Help: detailed guide to DPAPI encryption, "
+            "what it protects, and how to obtain unencrypted file copies",
+        ],
+    ),
+    (
         "1.1.1",
         "App icon, insurer info on reports, single-asset PDF",
         [

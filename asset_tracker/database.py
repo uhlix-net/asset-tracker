@@ -41,7 +41,8 @@ class Database:
                 file_name   TEXT NOT NULL,
                 file_type   TEXT NOT NULL,
                 stored_name TEXT NOT NULL,
-                date_added  TEXT NOT NULL
+                date_added  TEXT NOT NULL,
+                encrypted   INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE INDEX IF NOT EXISTS idx_af_asset_id ON asset_files(asset_id);
@@ -50,18 +51,22 @@ class Database:
 
     def _migrate(self) -> None:
         """Add columns introduced after initial release to existing databases."""
-        existing = {
-            row[1] for row in self._conn.execute("PRAGMA table_info(assets)")
-        }
-        migrations = {
+        asset_cols = {row[1] for row in self._conn.execute("PRAGMA table_info(assets)")}
+        asset_migrations = {
             "category":      "ALTER TABLE assets ADD COLUMN category TEXT NOT NULL DEFAULT ''",
             "current_value": "ALTER TABLE assets ADD COLUMN current_value REAL",
             "serial_number": "ALTER TABLE assets ADD COLUMN serial_number TEXT NOT NULL DEFAULT ''",
             "model_number":  "ALTER TABLE assets ADD COLUMN model_number TEXT NOT NULL DEFAULT ''",
         }
-        for col, sql in migrations.items():
-            if col not in existing:
+        for col, sql in asset_migrations.items():
+            if col not in asset_cols:
                 self._conn.execute(sql)
+
+        file_cols = {row[1] for row in self._conn.execute("PRAGMA table_info(asset_files)")}
+        if "encrypted" not in file_cols:
+            self._conn.execute(
+                "ALTER TABLE asset_files ADD COLUMN encrypted INTEGER NOT NULL DEFAULT 0"
+            )
         self._conn.commit()
 
     def next_asset_id(self) -> str:
@@ -88,9 +93,11 @@ class Database:
 
     def insert_asset_file(self, f: AssetFile) -> None:
         self._conn.execute(
-            """INSERT INTO asset_files (asset_id, file_name, file_type, stored_name, date_added)
-               VALUES (?, ?, ?, ?, ?)""",
-            (f.asset_id, f.file_name, f.file_type, f.stored_name, f.date_added or _now()),
+            """INSERT INTO asset_files
+               (asset_id, file_name, file_type, stored_name, date_added, encrypted)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (f.asset_id, f.file_name, f.file_type, f.stored_name,
+             f.date_added or _now(), 1 if f.encrypted else 0),
         )
         self._conn.commit()
 
@@ -208,4 +215,5 @@ class Database:
             file_type=row["file_type"],
             stored_name=row["stored_name"],
             date_added=row["date_added"],
+            encrypted=bool(row["encrypted"]),
         )

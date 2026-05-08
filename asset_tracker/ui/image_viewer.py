@@ -7,7 +7,8 @@ from PyQt6.QtGui import QPixmap
 
 
 class ImageViewer(QDialog):
-    def __init__(self, image_path: pathlib.Path, title: str = "", parent=None) -> None:
+    def __init__(self, image_path: pathlib.Path, title: str = "",
+                 encrypted: bool = False, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle(title or image_path.name)
         self.resize(800, 600)
@@ -28,14 +29,21 @@ class ImageViewer(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
-        self._load(image_path)
+        self._load(image_path, encrypted)
 
-    def _load(self, path: pathlib.Path) -> None:
-        pixmap = QPixmap(str(path))
+    def _load(self, path: pathlib.Path, encrypted: bool) -> None:
+        pixmap = QPixmap()
+        if encrypted:
+            from .. import storage
+            data = storage.read_file_bytes(path, encrypted=True)
+            pixmap.loadFromData(data)
+        else:
+            pixmap = QPixmap(str(path))
+
         if pixmap.isNull():
             self._label.setText(f"Cannot display: {path.name}")
             return
-        # Scale to fit screen while keeping aspect ratio
+
         screen = self.screen().availableGeometry()
         max_w = int(screen.width() * 0.85)
         max_h = int(screen.height() * 0.80)
