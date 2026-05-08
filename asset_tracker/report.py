@@ -251,9 +251,10 @@ def _toc_page(ss, assets_with_files: list) -> list:
     col_w = [0.65*inch, 2.2*inch, 1.05*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.5*inch]
     tbl = Table(rows, colWidths=col_w, repeatRows=1)
     tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _NAVY),
-        ("TEXTCOLOR", (0, 0), (-1, 0), _WHITE),
+        ("BACKGROUND", (0, 0), (-1, 0), _WHITE),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _NAVY),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("LINEBELOW", (0, 0), (-1, 0), 1.2, _NAVY),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_WHITE, _LIGHT_BG]),
         ("GRID", (0, 0), (-1, -1), 0.3, _RULE),
         ("FONTSIZE", (0, 0), (-1, -1), 8),

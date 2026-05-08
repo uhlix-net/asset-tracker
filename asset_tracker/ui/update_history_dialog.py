@@ -8,6 +8,15 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.0.11",
+        "TOC header readability; Update History v1.0.1 entry",
+        [
+            "PDF report table of contents: column headers now use white background "
+            "with navy bold text and a navy underline rule for clear readability",
+            "Added missing v1.0.1 entry to Update History",
+        ],
+    ),
+    (
         "1.0.10",
         "Installer version fix; receipt image in PDF report",
         [
@@ -92,6 +101,15 @@ HISTORY = [
             "Divider line below the toolbar always spans the full window width",
             "Toolbar, table, and preview panel anchored to the top — "
             "enlarging the window vertically adds empty space below",
+        ],
+    ),
+    (
+        "1.0.1",
+        "Layout — sticky content anchored to top",
+        [
+            "Toolbar, asset table, and preview panel anchored to the top of "
+            "the window; enlarging the window vertically adds empty space below "
+            "rather than stretching the content",
         ],
     ),
     (
