@@ -2,7 +2,7 @@ import os
 import pathlib
 
 APP_NAME = "AssetTracker"
-APP_VERSION = "1.0.8"
+APP_VERSION = "1.0.9"
 
 if os.name == "nt":
     _base = pathlib.Path(os.environ["APPDATA"])

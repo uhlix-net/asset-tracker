@@ -8,6 +8,14 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.0.9",
+        "Bug fix — PDF report generation",
+        [
+            "Fixed a crash when generating the PDF report caused by an invalid "
+            "ReportLab Table parameter (colPaddings)",
+        ],
+    ),
+    (
         "1.0.8",
         "Legal-grade PDF inventory report",
         [

@@ -340,11 +340,13 @@ def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
     detail = Table(
         [[mini_table(left_col), mini_table(right_col)]],
         colWidths=[3.15 * inch, 3.15 * inch],
-        colPaddings=[0, 6],
     )
     detail.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (1, 0), (1, 0), 8),
+        ("LEFTPADDING",  (0, 0), (0, 0), 0),
+        ("RIGHTPADDING", (0, 0), (0, 0), 6),
+        ("LEFTPADDING",  (1, 0), (1, 0), 6),
+        ("RIGHTPADDING", (1, 0), (1, 0), 0),
     ]))
     block.append(detail)
 
