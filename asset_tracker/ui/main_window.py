@@ -3,7 +3,7 @@ import os
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QFileDialog,
-    QInputDialog, QLineEdit, QStatusBar, QSizePolicy,
+    QInputDialog, QLineEdit, QStatusBar,
 )
 from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QAction
@@ -101,15 +101,9 @@ class MainWindow(QMainWindow):
         line.setStyleSheet("background: #d0d0d0;")
         root.addWidget(line)
 
-        # Splitter — 50/50 horizontal split, anchored to the top
+        # Splitter — fills all remaining space with a 50/50 split
         self._splitter = QSplitter(Qt.Orientation.Horizontal)
-        # Expanding horizontally (fills full width) but Preferred vertically
-        # so it keeps its natural height and does not stretch downward when
-        # the window is made taller.
-        self._splitter.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Preferred,
-        )
+        root.addWidget(self._splitter)
 
         self._asset_list = AssetList()
         self._preview = PreviewPanel(self._db)
@@ -123,13 +117,9 @@ class MainWindow(QMainWindow):
         if self._settings.contains("splitter"):
             self._splitter.restoreState(self._settings.value("splitter"))
         else:
+            # Default 50/50 based on initial window width
             half = self.width() // 2
             self._splitter.setSizes([half, half])
-
-        root.addWidget(self._splitter)
-        # Stretch absorbs any extra vertical space, keeping all content
-        # pinned to the top when the window is enlarged vertically.
-        root.addStretch(1)
 
         # Toolbar signals
         self._toolbar.add_clicked.connect(self._on_add)

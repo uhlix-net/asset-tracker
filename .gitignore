@@ -19,6 +19,9 @@ backups/
 # Installer build output
 installer/AssetTracker_Setup.exe
 
+# Windows Zone.Identifier alternate data streams (created by NTFS via WSL)
+*:Zone.Identifier
+
 # IDE
 .vscode/
 .idea/
