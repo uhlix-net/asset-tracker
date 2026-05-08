@@ -35,3 +35,15 @@ desktop.ini
 
 # Logs
 *.log
+
+# Flutter / Android
+android_app/.dart_tool/
+android_app/.flutter-plugins
+android_app/.flutter-plugins-dependencies
+android_app/build/
+android_app/.gradle/
+android_app/android/.gradle/
+android_app/android/local.properties
+android_app/android/key.properties
+# google-services.json contains real Firebase config — provide your own
+# android_app/android/app/google-services.json  (placeholder is tracked)
