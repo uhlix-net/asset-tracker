@@ -8,6 +8,21 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.0.8",
+        "Legal-grade PDF inventory report",
+        [
+            "Complete redesign of the PDF report for insurance claim submission",
+            "Formal cover page with declaration statement and owner signature line",
+            "Running header (document title, date) and footer (confidential notice, "
+            "page number) on every page",
+            "Assets grouped by category with a navy category divider page",
+            "Structured per-asset records with two-column detail grid, "
+            "notes section, and 3-column photo grid with file name captions",
+            "Professional navy/slate colour scheme replacing the previous "
+            "casual blue palette",
+        ],
+    ),
+    (
         "1.0.7",
         "Receipt link and UI improvements",
         [
