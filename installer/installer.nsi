@@ -10,7 +10,7 @@ Unicode True
 
 ; ── Definitions ─────────────────────────────────────────────
 !define APP_NAME      "Asset Tracker"
-!define APP_VERSION   "1.0.0"
+!define APP_VERSION   "1.0.2"
 !define APP_PUBLISHER "uhlix-net"
 !define UNINST_KEY    "Software\Microsoft\Windows\CurrentVersion\Uninstall\AssetTracker"
 !define PYTHON_URL    "https://www.python.org/ftp/python/3.12.9/python-3.12.9-amd64.exe"
@@ -50,24 +50,35 @@ SetCompressor         lzma
 Var PythonExe
 
 ; ============================================================
-;  Macro: try one registry key, set $PythonExe if found
+;  Macro: probe one Python registry key for python.exe
+;
+;  NSIS is a 32-bit process.  Python 64-bit registers in the
+;  64-bit registry hive, which 32-bit processes cannot see
+;  without SetRegView 64.  Always call this macro inside a
+;  SetRegView 64 / SetRegView 32 block.
+;
+;  "ExecutablePath" stores the full path to python.exe directly,
+;  avoiding the trailing-backslash issue with the "InstallPath"
+;  default value (e.g. C:\Python312\ -> double-backslash path).
 ; ============================================================
 !macro TryRegKey ROOT VER
     ${If} $PythonExe == ""
-        ReadRegStr $R0 ${ROOT} "SOFTWARE\Python\PythonCore\${VER}\InstallPath" ""
+        ReadRegStr $R0 ${ROOT} "SOFTWARE\Python\PythonCore\${VER}\InstallPath" "ExecutablePath"
         ${If} $R0 != ""
-            IfFileExists "$R0\python.exe" 0 +2
-                StrCpy $PythonExe "$R0\python.exe"
+            IfFileExists "$R0" 0 +2
+                StrCpy $PythonExe "$R0"
         ${EndIf}
     ${EndIf}
 !macroend
 
 ; ============================================================
-;  FindPython — checks registry (3.10-3.13) then PATH
+;  FindPython — checks 64-bit registry (3.10-3.13) then PATH
 ; ============================================================
 Function FindPython
     StrCpy $PythonExe ""
 
+    ; Read the 64-bit registry hive so Python 64-bit is visible
+    SetRegView 64
     !insertmacro TryRegKey HKCU "3.13"
     !insertmacro TryRegKey HKCU "3.12"
     !insertmacro TryRegKey HKCU "3.11"
@@ -76,8 +87,9 @@ Function FindPython
     !insertmacro TryRegKey HKLM "3.12"
     !insertmacro TryRegKey HKLM "3.11"
     !insertmacro TryRegKey HKLM "3.10"
+    SetRegView 32
 
-    ; Fall back to PATH — accept any "Python 3.x"
+    ; Fall back to PATH — accept any Python 3.x in the current environment
     ${If} $PythonExe == ""
         nsExec::ExecToStack 'python --version'
         Pop $R0   ; exit code
@@ -97,7 +109,7 @@ FunctionEnd
 Function DownloadAndInstallPython
     DetailPrint "Downloading Python 3.12 from python.org..."
 
-    ; Write PowerShell download script — avoids quoting/variable-expansion issues
+    ; Write a PowerShell download script — avoids quoting issues
     FileOpen  $R9 "$TEMP\dl_python.ps1" w
     FileWrite $R9 "try {$\n"
     FileWrite $R9 "  (New-Object System.Net.WebClient).DownloadFile($\n"
@@ -130,13 +142,19 @@ Function DownloadAndInstallPython
         Abort
     ${EndIf}
 
-    ; Re-check registry for the newly installed Python
-    Call FindPython
+    ; Read the 64-bit hive directly — PATH is not refreshed in the
+    ; current process after a silent install, but the registry is.
+    SetRegView 64
+    ReadRegStr $R0 HKLM "SOFTWARE\Python\PythonCore\3.12\InstallPath" "ExecutablePath"
+    SetRegView 32
+    ${If} $R0 != ""
+        IfFileExists "$R0" 0 +2
+            StrCpy $PythonExe "$R0"
+    ${EndIf}
+
+    ; Last resort: re-run the full registry scan
     ${If} $PythonExe == ""
-        ReadRegStr $R0 HKLM "SOFTWARE\Python\PythonCore\3.12\InstallPath" ""
-        ${If} $R0 != ""
-            StrCpy $PythonExe "$R0\python.exe"
-        ${EndIf}
+        Call FindPython
     ${EndIf}
 FunctionEnd
 
@@ -192,7 +210,6 @@ Section "${APP_NAME}" SecMain
     FileOpen $0 "$INSTDIR\launch.vbs" w
     FileWrite $0 "Set ws = CreateObject($\"WScript.Shell$\")$\r$\n"
     FileWrite $0 "ws.CurrentDirectory = $\"$INSTDIR$\"$\r$\n"
-    ; Wrap each path in Chr(34) so spaces in Program Files are handled correctly
     FileWrite $0 "ws.Run Chr(34) & $\"$INSTDIR\.venv\Scripts\pythonw.exe$\" & Chr(34) & $\" $\" & Chr(34) & $\"$INSTDIR\main.py$\" & Chr(34), 0$\r$\n"
     FileClose $0
 
@@ -219,7 +236,6 @@ Section "${APP_NAME}" SecMain
     ${EndIf}
 
     ; ── Start Menu and Desktop shortcuts ───────────────────
-    ; Use full path to wscript.exe to avoid PATH lookup issues
     StrCpy $R7 "$WINDIR\System32\wscript.exe"
 
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
