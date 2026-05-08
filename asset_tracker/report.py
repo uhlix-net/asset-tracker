@@ -12,7 +12,7 @@ from reportlab.platypus import (
     PageBreak, Image, HRFlowable, KeepTogether,
 )
 
-from .config import APP_NAME
+from .config import APP_NAME, IMAGE_EXTENSIONS
 from .models import Asset, AssetFile
 from . import storage
 
@@ -413,6 +413,36 @@ def _asset_record(ss, asset: Asset, files: list[AssetFile]) -> list:
                 ("PADDING", (0, 0), (-1, -1), 4),
             ]))
             block.append(photo_tbl)
+
+    # ── Receipt ───────────────────────────────────────────────────────────────
+    if receipt:
+        block.append(Spacer(1, 0.1 * inch))
+        block.append(Paragraph("SALES RECEIPT", ss["SectionHead"]))
+        block.append(Spacer(1, 0.04 * inch))
+        receipt_path = storage.get_stored_path(asset, receipt)
+        ext = receipt_path.suffix.lower()
+        if ext in IMAGE_EXTENSIONS:
+            try:
+                rec_img = Image(str(receipt_path),
+                                width=3.5 * inch, height=3.5 * inch,
+                                kind="proportional")
+                rec_tbl = Table([[rec_img]],
+                                colWidths=[3.6 * inch])
+                rec_tbl.setStyle(TableStyle([
+                    ("ALIGN",   (0, 0), (-1, -1), "LEFT"),
+                    ("GRID",    (0, 0), (-1, -1), 0.3, _RULE),
+                    ("PADDING", (0, 0), (-1, -1), 4),
+                ]))
+                block.append(rec_tbl)
+                block.append(Paragraph(receipt.file_name, ss["Caption"]))
+            except Exception:
+                block.append(Paragraph(
+                    f"Receipt on file: {receipt.file_name}", ss["FieldValue"]))
+        else:
+            block.append(Paragraph(
+                f"Receipt on file: {receipt.file_name}  "
+                f"(PDF — open the original file to view)",
+                ss["FieldValue"]))
 
     # ── Record separator ──────────────────────────────────────────────────────
     block.append(Spacer(1, 0.14 * inch))

@@ -8,6 +8,16 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.0.10",
+        "Installer version fix; receipt image in PDF report",
+        [
+            "Fixed the version shown in Windows Settings > Apps > Installed Apps "
+            "— the installer was still reporting v1.0.2",
+            "PDF inventory report now includes the receipt image for each asset "
+            "that has one (image receipts embedded; PDF receipts noted by filename)",
+        ],
+    ),
+    (
         "1.0.9",
         "Bug fix — PDF report generation",
         [
