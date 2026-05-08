@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QFileDialog,
     QInputDialog, QLineEdit, QStatusBar,
 )
-from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtCore import Qt, QSettings, QTimer
 from PyQt6.QtGui import QAction
 
 from ..database import Database
@@ -101,9 +101,8 @@ class MainWindow(QMainWindow):
         line.setStyleSheet("background: #d0d0d0;")
         root.addWidget(line)
 
-        # Splitter — fills all remaining space with a 50/50 split
+        # Splitter — 50/50 horizontal split, anchored to top
         self._splitter = QSplitter(Qt.Orientation.Horizontal)
-        root.addWidget(self._splitter)
 
         self._asset_list = AssetList()
         self._preview = PreviewPanel(self._db)
@@ -117,9 +116,12 @@ class MainWindow(QMainWindow):
         if self._settings.contains("splitter"):
             self._splitter.restoreState(self._settings.value("splitter"))
         else:
-            # Default 50/50 based on initial window width
             half = self.width() // 2
             self._splitter.setSizes([half, half])
+
+        root.addWidget(self._splitter)
+        # Absorbs extra vertical space so all content stays at the top
+        root.addStretch(1)
 
         # Toolbar signals
         self._toolbar.add_clicked.connect(self._on_add)
@@ -349,6 +351,18 @@ class MainWindow(QMainWindow):
         AboutDialog(self).exec()
 
     # ── Close / persist ───────────────────────────────────────────────────────
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if not hasattr(self, "_height_locked"):
+            self._height_locked = True
+            # Run after Qt finishes its first layout pass so height() is correct
+            QTimer.singleShot(0, self._lock_splitter_height)
+
+    def _lock_splitter_height(self) -> None:
+        h = self._splitter.height()
+        if h > 0:
+            self._splitter.setFixedHeight(h)
 
     def closeEvent(self, event) -> None:
         if self._settings.value("auto_backup_on_exit", False, type=bool):
