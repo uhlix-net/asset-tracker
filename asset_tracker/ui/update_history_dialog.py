@@ -8,6 +8,17 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.2.0",
+        "Bug fix — Android manifest: restore flutterEmbedding v2 declaration",
+        [
+            "Flutter 3.19.x requires flutterEmbedding=2 in AndroidManifest.xml "
+            "to confirm v2 embedding; without it, v2-only plugins such as "
+            "cloud_firestore refuse to load",
+            "The meta-data is placed at the <application> level so it is "
+            "visible to the Flutter Gradle plugin before activity-level checks",
+        ],
+    ),
+    (
         "1.1.9",
         "Bug fix — Android build: Flutter 3.19.6 + Firebase v2",
         [
