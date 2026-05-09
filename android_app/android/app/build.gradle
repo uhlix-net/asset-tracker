@@ -1,6 +1,6 @@
 plugins {
     id "com.android.application"
-    id "kotlin-android"
+    id "org.jetbrains.kotlin.android"
     id "dev.flutter.flutter-gradle-plugin"
     id "com.google.gms.google-services"
 }
@@ -19,8 +19,6 @@ android {
 
     defaultConfig {
         applicationId   "net.uhlix.assettracker"
-        // Firebase requires minSdk 21; explicit value avoids flutter.minSdkVersion
-        // resolving too low and triggering v1 embedding checks in some plugin versions.
         minSdk          21
         targetSdk       flutter.targetSdkVersion
         versionCode     flutter.versionCode
@@ -30,7 +28,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig   signingConfigs.debug   // swap for keystore in production
+            signingConfig   signingConfigs.debug
             minifyEnabled   false
             shrinkResources false
         }

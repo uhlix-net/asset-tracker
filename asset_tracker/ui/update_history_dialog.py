@@ -8,6 +8,22 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.9",
+        "Bug fix — Android build: Flutter 3.19.6 + Firebase v2",
+        [
+            "Pinned CI to Flutter 3.19.6 — Flutter 3.22 has an "
+            "over-aggressive v1 embedding check that rejects plugins with "
+            "any legacy registration code, including packages that are "
+            "functionally v2-compatible",
+            "Downgraded Firebase packages to v2.x (firebase_core 2.x, "
+            "firebase_auth 4.x, cloud_firestore 4.x, firebase_storage 11.x) "
+            "which require Flutter >=3.19 — the Flutter/Dart API surface is "
+            "identical to v3.x for everything the app uses",
+            "Fixed Kotlin Gradle plugin ID: kotlin-android → "
+            "org.jetbrains.kotlin.android",
+        ],
+    ),
+    (
         "1.1.8",
         "Bug fix — remove flutter_secure_storage from Android app",
         [
