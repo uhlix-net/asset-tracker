@@ -8,6 +8,20 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.6",
+        "Bug fix — Android build: missing resources and manifest corrections",
+        [
+            "Added required Android resource files missing from the initial "
+            "Flutter project structure: mipmap launcher icons (all densities), "
+            "styles.xml (light + night), and launch_background.xml",
+            "Fixed AndroidManifest.xml: removed deprecated flutterEmbedding "
+            "meta-data that caused the v1 embedding error; added correct "
+            "NormalTheme meta-data inside the activity",
+            "Set explicit minSdk 21 in build.gradle (required by Firebase)",
+            "Updated Gradle plugin versions to match Flutter 3.22",
+        ],
+    ),
+    (
         "1.1.5",
         "Bug fix — GitHub Actions Android build workflow",
         [

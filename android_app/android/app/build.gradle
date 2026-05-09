@@ -18,17 +18,19 @@ android {
     kotlinOptions { jvmTarget = "1.8" }
 
     defaultConfig {
-        applicationId "net.uhlix.assettracker"
-        minSdk        flutter.minSdkVersion
-        targetSdk     flutter.targetSdkVersion
-        versionCode   flutter.versionCode
-        versionName   flutter.versionName
+        applicationId   "net.uhlix.assettracker"
+        // Firebase requires minSdk 21; explicit value avoids flutter.minSdkVersion
+        // resolving too low and triggering v1 embedding checks in some plugin versions.
+        minSdk          21
+        targetSdk       flutter.targetSdkVersion
+        versionCode     flutter.versionCode
+        versionName     flutter.versionName
         multiDexEnabled true
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug   // swap for keystore in production
+            signingConfig   signingConfigs.debug   // swap for keystore in production
             minifyEnabled   false
             shrinkResources false
         }
