@@ -8,6 +8,16 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
+        <!--
+          Required by Flutter 3.19.x: explicitly declare v2 embedding so
+          that v2-only plugins (cloud_firestore, firebase_*) are accepted.
+          Flutter 3.22+ no longer needs this tag, but 3.19.x uses it to
+          detect the embedding version before checking plugin compatibility.
+        -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -17,8 +27,6 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- Specifies the NormalTheme to use once Flutter renders the
-                 first frame. This is required by the v2 Flutter embedding. -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
