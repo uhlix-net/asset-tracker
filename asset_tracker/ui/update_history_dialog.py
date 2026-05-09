@@ -8,6 +8,17 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.7",
+        "Bug fix — Android v1 embedding error from transitive dependency",
+        [
+            "Removed unused packages cached_network_image and flutter_spinkit "
+            "from the Android app: cached_network_image pulled in sqflite via "
+            "flutter_cache_manager, and sqflite retains PluginRegistry.Registrar "
+            "which triggers Flutter 3.22's deleted-v1-embedding build check. "
+            "Neither package was used in the app code.",
+        ],
+    ),
+    (
         "1.1.6",
         "Bug fix — Android build: missing resources and manifest corrections",
         [
