@@ -18,7 +18,7 @@ dependencies:
   cloud_firestore: ^5.1.0
   firebase_storage: ^12.1.0
 
-  # Encryption
+  # Encryption (pure Dart — no native Android code)
   encrypt: ^5.0.3
   pointycastle: ^3.9.1
   crypto: ^3.0.3
@@ -26,10 +26,14 @@ dependencies:
   # Secure storage (sync password in Android Keystore)
   flutter_secure_storage: ^9.2.2
 
-  # UI helpers
-  cached_network_image: ^3.3.1
+  # Utilities
   intl: ^0.19.0
-  flutter_spinkit: ^5.2.1
+
+  # NOTE: cached_network_image and flutter_spinkit removed.
+  # cached_network_image pulled in sqflite (via flutter_cache_manager)
+  # which retains PluginRegistry.Registrar — triggering Flutter 3.22's
+  # "deleted Android v1 embedding" check.  Neither package is used in
+  # the app code (images load as bytes, spinners use CircularProgressIndicator).
 
 dev_dependencies:
   flutter_test:
