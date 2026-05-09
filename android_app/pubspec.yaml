@@ -6,13 +6,13 @@ publish_to: none
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.19.0"
+  flutter: ">=3.22.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  # Firebase
+  # Firebase (requires Flutter >=3.22)
   firebase_core: ^3.1.0
   firebase_auth: ^5.1.0
   cloud_firestore: ^5.1.0
@@ -23,17 +23,15 @@ dependencies:
   pointycastle: ^3.9.1
   crypto: ^3.0.3
 
-  # Secure storage (sync password in Android Keystore)
-  flutter_secure_storage: ^9.2.2
-
-  # Utilities
+  # Utilities (pure Dart)
   intl: ^0.19.0
 
-  # NOTE: cached_network_image and flutter_spinkit removed.
-  # cached_network_image pulled in sqflite (via flutter_cache_manager)
-  # which retains PluginRegistry.Registrar — triggering Flutter 3.22's
-  # "deleted Android v1 embedding" check.  Neither package is used in
-  # the app code (images load as bytes, spinners use CircularProgressIndicator).
+  # NOTE: flutter_secure_storage removed.
+  # Despite v9 claiming to remove Android v1 embedding support, its
+  # Android companion object retains PluginRegistry.Registrar which
+  # triggers Flutter 3.22's deleted-v1-embedding check.
+  # Credentials are no longer persisted between sessions; users re-enter
+  # them each time they open the app (the AES sync key is held in memory).
 
 dev_dependencies:
   flutter_test:

@@ -8,6 +8,18 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.1.8",
+        "Bug fix — remove flutter_secure_storage from Android app",
+        [
+            "Removed flutter_secure_storage: its Android companion object "
+            "retains PluginRegistry.Registrar, triggering Flutter 3.22's "
+            "deleted-v1-embedding build check",
+            "Login credentials are no longer persisted between sessions — "
+            "users enter Firebase email, password, and sync password each "
+            "time the app opens (the AES encryption key lives in memory only)",
+        ],
+    ),
+    (
         "1.1.7",
         "Bug fix — Android v1 embedding error from transitive dependency",
         [
