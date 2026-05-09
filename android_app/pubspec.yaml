@@ -6,17 +6,18 @@ publish_to: none
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.22.0"
+  flutter: ">=3.19.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  # Firebase (requires Flutter >=3.22)
-  firebase_core: ^3.1.0
-  firebase_auth: ^5.1.0
-  cloud_firestore: ^5.1.0
-  firebase_storage: ^12.1.0
+  # Firebase v2.x — compatible with Flutter >=3.19.0
+  # (v3.x requires Flutter 3.22 which has over-aggressive v1-embedding checks)
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.20.0
+  cloud_firestore: ^4.17.5
+  firebase_storage: ^11.7.7
 
   # Encryption (pure Dart — no native Android code)
   encrypt: ^5.0.3
@@ -25,13 +26,6 @@ dependencies:
 
   # Utilities (pure Dart)
   intl: ^0.19.0
-
-  # NOTE: flutter_secure_storage removed.
-  # Despite v9 claiming to remove Android v1 embedding support, its
-  # Android companion object retains PluginRegistry.Registrar which
-  # triggers Flutter 3.22's deleted-v1-embedding check.
-  # Credentials are no longer persisted between sessions; users re-enter
-  # them each time they open the app (the AES sync key is held in memory).
 
 dev_dependencies:
   flutter_test:
