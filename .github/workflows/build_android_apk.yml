@@ -47,28 +47,14 @@ jobs:
 
       - name: Patch Flutter to bypass v1 embedding checks and delete snapshot
         run: |
-          # Patch 1: build_apk.dart - return DeprecationBehavior.none so checkForDeprecation is skipped
           APKFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/commands/build_apk.dart"
+          GRADLEFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/android/gradle.dart"
           sed -i "s|boolArg('ignore-deprecation') ? DeprecationBehavior.ignore : DeprecationBehavior.exit|DeprecationBehavior.none|g" "$APKFILE"
-          echo "build_apk.dart patch:" && grep "DeprecationBehavior" "$APKFILE" | tail -2
-          # Patch 2: project.dart - make getEmbeddingVersion() always return v2 to avoid xml namespace getAttribute bug
-          PROJFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/project.dart"
-          python3 - "$PROJFILE" << 'PYEOF'
-import sys, re
-f = sys.argv[1]
-c = open(f).read()
-# Replace getEmbeddingVersion body to always return v2
-c = re.sub(
-  r'(AndroidEmbeddingVersion getEmbeddingVersion\(\) \{)[^}]+\}',
-  r'\1\n    // Workaround: xml 6.6.1 getAttribute namespace bug prevents flutterEmbedding detection\n    return AndroidEmbeddingVersion.v2;\n  }',
-  c, count=1)
-open(f, 'w').write(c)
-print("project.dart getEmbeddingVersion patched")
-PYEOF
-          # Delete snapshot so Flutter recompiles from patched source
-          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot"
-          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
-          echo "All patches applied and snapshot deleted."
+          sed -i "s|= project.android.getEmbeddingVersion() == AndroidEmbeddingVersion.v2|= true /* v2 workaround: xml getAttribute namespace bug */|g" "$GRADLEFILE"
+          echo "build_apk patch:" && grep "DeprecationBehavior" "$APKFILE" | tail -1
+          echo "gradle patch:" && grep "v2 workaround" "$GRADLEFILE"
+          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot" "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
+          echo "Snapshot deleted."
 
       - name: Build release APK
         working-directory: android_app
