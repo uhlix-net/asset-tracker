@@ -17,15 +17,6 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!--
-              Required by Flutter 3.19.x: Flutter's Gradle plugin parses the
-              manifest and looks for this tag *inside an <activity> element*.
-              Placing it at <application> level is not found by the check.
-            -->
-            <meta-data
-                android:name="flutterEmbedding"
-                android:value="2"/>
-
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
