@@ -1,5 +1,5 @@
-import 'dart:isolate';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/crypto_service.dart';
 import '../services/firebase_service.dart';
@@ -46,8 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Derive AES key in a background isolate (600k PBKDF2 iterations)
-    Isolate.run(() => CryptoService.deriveKey(syncPass)).then((key) {
+    // Derive AES key in a background isolate (600k PBKDF2 iterations).
+    // compute() takes a static method reference — no closure capture issues.
+    try {
+      final key = await compute(CryptoService.deriveKey, syncPass);
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -55,10 +57,10 @@ class _LoginScreenState extends State<LoginScreen> {
           builder: (_) => AssetListScreen(syncKey: key, firebase: _firebase),
         ),
       );
-    }).catchError((e) {
+    } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _error = e.toString(); });
-    });
+    }
   }
 
   @override
