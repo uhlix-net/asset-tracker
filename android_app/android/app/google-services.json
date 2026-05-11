@@ -1,20 +1,28 @@
 {
-  "_comment": "Info from Firebase Console.",
-  "_instructions": "See FIREBASE_SETUP.md for step-by-step instructions.",
   "project_info": {
     "project_number": "439449257622",
-    "project_id":     "assettracker-daf80",
+    "project_id": "assettracker-daf80",
     "storage_bucket": "assettracker-daf80.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:439449257622:web:20f29bc8d45b36d03264b7",
-        "android_client_info": { "package_name": "net.uhlix.assettracker" }
+        "mobilesdk_app_id": "1:439449257622:android:b70de0720bca2b703264b7",
+        "android_client_info": {
+          "package_name": "net.uhlix.assettracker"
+        }
       },
       "oauth_client": [],
-      "api_key": [{ "current_key": "AIzaSyBNrDpjZc4OAr4084OoWzdkFtMymseTwcA" }],
-      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQjkFtq9jTm1QMsMBPNbKUteKUkK7stHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"
