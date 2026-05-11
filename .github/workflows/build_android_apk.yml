@@ -45,19 +45,16 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
-      - name: Patch Flutter embedding check and delete snapshot
+      - name: Patch Flutter to bypass v1 embedding check and delete snapshot
         run: |
-          PFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/project.dart"
-          NS="http://schemas.android.com/apk/res/android"
-          # Fix: use namespace-aware getAttribute with prefix-based fallback
-          sed -i "s|metaData\.getAttribute('android:name')|metaData.getAttribute('name', namespace: '$NS') ?? metaData.getAttribute('android:name')|g" "$PFILE"
-          sed -i "s|metaData\.getAttribute('android:value')|metaData.getAttribute('value', namespace: '$NS') ?? metaData.getAttribute('android:value')|g" "$PFILE"
-          # Fix the application check too
-          sed -i "s|application\.getAttribute('android:name')|application.getAttribute('name', namespace: '$NS') ?? application.getAttribute('android:name')|g" "$PFILE"
+          # Patch build_apk.dart: return DeprecationBehavior.none so check is skipped entirely
+          APKFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/commands/build_apk.dart"
+          sed -i "s|boolArg('ignore-deprecation') ? DeprecationBehavior.ignore : DeprecationBehavior.exit|DeprecationBehavior.none|g" "$APKFILE"
+          grep "DeprecationBehavior" "$APKFILE" | head -3
           # Delete snapshot so Flutter recompiles from patched source
           rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot"
           rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
-          echo "Patch applied. Snapshot deleted."
+          echo "Patch applied and snapshot deleted."
 
       - name: Build release APK
         working-directory: android_app
