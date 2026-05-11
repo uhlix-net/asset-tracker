@@ -46,8 +46,8 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
-      - name: Diagnose xml package and manifest
-        run: find "$HOME/.pub-cache" -name "pubspec.yaml" -path "*/xml-*" 2>/dev/null | head -3 | xargs -I{} grep "^version:" {} ; python3 -c "c=open('android_app/android/app/src/main/AndroidManifest.xml').read(); print('embedding_pos='+str(c.find('flutterEmbedding'))); print('value2_pos='+str(c.find('android:value=\"2\"'))); print('meta_count='+str(c.count('<meta-data')))"
+      - name: Diagnose xml getAttribute source
+        run: find "$HOME/.pub-cache" -path "*/xml-6*/lib/src*" -name "*.dart" 2>/dev/null | xargs grep -l "getAttributeNode\|getAttribute" 2>/dev/null | head -2 | xargs grep -A25 "getAttributeNode" 2>/dev/null | head -40
 
       - name: Build release APK
         working-directory: android_app
