@@ -30,7 +30,14 @@ class FirebaseService {
         .collection('assets')
         .get();
 
+    if (snap.docs.isEmpty) {
+      throw Exception(
+          'No synced assets found in Firebase.\n'
+          'Please run File → Sync to Cloud from the Windows app first.');
+    }
+
     final assets = <Asset>[];
+    int decryptFailures = 0;
     for (final doc in snap.docs) {
       final enc = doc.data()['data'] as String?;
       if (enc == null) continue;
@@ -38,8 +45,14 @@ class FirebaseService {
         final map = CryptoService.decryptJson(enc, syncKey);
         assets.add(Asset.fromMap(map));
       } catch (_) {
-        // skip corrupt / wrongly-keyed documents
+        decryptFailures++;
       }
+    }
+
+    if (decryptFailures > 0 && assets.isEmpty) {
+      throw Exception(
+          'Could not decrypt any assets ($decryptFailures of ${snap.docs.length} failed).\n'
+          'Check that your Sync Password matches the one used on the Windows app.');
     }
 
     // Attach file manifests
