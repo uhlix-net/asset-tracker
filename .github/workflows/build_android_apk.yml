@@ -25,6 +25,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.24.5"
           channel: stable
           cache: true
 
@@ -44,17 +45,6 @@ jobs:
       - name: Flutter pub get
         working-directory: android_app
         run: flutter pub get
-
-      - name: Patch Flutter to bypass v1 embedding checks and delete snapshot
-        run: |
-          APKFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/commands/build_apk.dart"
-          GRADLEFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/android/gradle.dart"
-          sed -i "s|boolArg('ignore-deprecation') ? DeprecationBehavior.ignore : DeprecationBehavior.exit|DeprecationBehavior.none|g" "$APKFILE"
-          sed -i "s|= project.android.getEmbeddingVersion() == AndroidEmbeddingVersion.v2|= true /* v2 workaround: xml getAttribute namespace bug */|g" "$GRADLEFILE"
-          echo "build_apk patch:" && grep "DeprecationBehavior" "$APKFILE" | tail -1
-          echo "gradle patch:" && grep "v2 workaround" "$GRADLEFILE"
-          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot" "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
-          echo "Snapshot deleted."
 
       - name: Build release APK
         working-directory: android_app
