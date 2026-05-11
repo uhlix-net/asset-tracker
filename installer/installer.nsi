@@ -166,31 +166,56 @@ FunctionEnd
 ;  .onInit — Python check before any pages appear
 ; ============================================================
 Function .onInit
-    ; ── Check if Asset Tracker is already running ──────────────────────────
-    ; Write PowerShell check to a temp file to avoid NSIS $ interpolation.
-    ; Inside FileWrite strings, $$ produces a literal $ in the output file.
+    ; ── Write helper scripts to TEMP ─────────────────────────────────────────
+    ; $$ in FileWrite strings produces a literal $ in the output file,
+    ; avoiding NSIS variable interpolation of PowerShell variables.
+
+    ; check_at.ps1 — exits 1 if Asset Tracker is running, 0 if not
     FileOpen  $R9 "$TEMP\check_at.ps1" w
-    FileWrite $R9 '$$p = Get-Process -Name pythonw -ErrorAction SilentlyContinue'
+    FileWrite $R9 '$$p = Get-Process -Name pythonw -EA SilentlyContinue'
     FileWrite $R9 "$\r$\n"
-    FileWrite $R9 'if ($$p | Where-Object { $$_.MainWindowTitle -like "*Asset Tracker*" }) { exit 1 }'
+    FileWrite $R9 'if ($$p | Where-Object { ($$_.Path -like "*AssetTracker*") -or ($$_.MainWindowTitle -like "*Asset Tracker*") }) { exit 1 }'
     FileWrite $R9 "$\r$\n"
     FileWrite $R9 "exit 0$\r$\n"
     FileClose $R9
 
+    ; close_at.ps1 — forcibly stops Asset Tracker pythonw processes
+    FileOpen  $R9 "$TEMP\close_at.ps1" w
+    FileWrite $R9 '$$p = Get-Process -Name pythonw -EA SilentlyContinue'
+    FileWrite $R9 "$\r$\n"
+    FileWrite $R9 '$$p | Where-Object { ($$_.Path -like "*AssetTracker*") -or ($$_.MainWindowTitle -like "*Asset Tracker*") } | Stop-Process -Force -EA SilentlyContinue'
+    FileWrite $R9 "$\r$\n"
+    FileClose $R9
+
+    ; ── Check if Asset Tracker is already running ─────────────────────────────
+    ; -ExecutionPolicy Bypass prevents a policy restriction from returning exit
+    ; code 1 and being misread as "app is running".
     checkRunning:
     nsExec::ExecToStack \
-        'powershell.exe -NoProfile -WindowStyle Hidden -File "$TEMP\check_at.ps1"'
-    Pop $R0   ; exit code: 1 = running, 0 = not running
+        'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$TEMP\check_at.ps1"'
+    Pop $R0   ; 1 = running, 0 = not running
     Pop $R1
-    ${If} $R0 == 1
-        MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION \
+    StrCmp $R0 "1" +1 notRunning
+        ; App is open — ask user what to do
+        MessageBox MB_YESNOCANCEL|MB_ICONEXCLAMATION \
             "${APP_NAME} is currently open.$\r$\n$\r$\n\
-            Please close it and click Retry to continue,$\r$\n\
+            Click Yes to close it automatically and continue,$\r$\n\
+            No to retry after closing it yourself,$\r$\n\
             or Cancel to exit the installer." \
-            IDRETRY checkRunning
-        Abort
-    ${EndIf}
+            IDYES closeApp IDNO checkRunning
+        Abort   ; Cancel button
+
+        closeApp:
+        nsExec::ExecToStack \
+            'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$TEMP\close_at.ps1"'
+        Pop $R0
+        Pop $R1
+        Sleep 1500   ; give the process time to exit cleanly
+        Goto checkRunning
+
+    notRunning:
     Delete "$TEMP\check_at.ps1"
+    Delete "$TEMP\close_at.ps1"
 
     Call FindPython
     ${If} $PythonExe == ""
