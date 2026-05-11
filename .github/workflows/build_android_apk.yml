@@ -46,8 +46,8 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
-      - name: Diagnose xml getAttribute source
-        run: find "$HOME/.pub-cache" -path "*/xml-6*/lib/src*" -name "*.dart" 2>/dev/null | xargs grep -l "getAttributeNode\|getAttribute" 2>/dev/null | head -2 | xargs grep -A25 "getAttributeNode" 2>/dev/null | head -40
+      - name: Diagnose xml createNameMatcher source
+        run: find "$HOME/.pub-cache/hosted/pub.dev/xml-6.5.0" -name "*.dart" 2>/dev/null | xargs grep -l "createNameMatcher" 2>/dev/null | xargs grep -A20 "createNameMatcher" 2>/dev/null | head -60
 
       - name: Build release APK
         working-directory: android_app
