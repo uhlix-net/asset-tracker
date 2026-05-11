@@ -17,6 +17,11 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
+            <!-- Required by Flutter's Dart CLI to confirm v2 embedding. -->
+            <meta-data
+                android:name="flutterEmbedding"
+                android:value="2" />
+
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
@@ -26,10 +31,5 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
-        <!-- Required by Flutter's Gradle plugin to confirm v2 embedding. -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
     </application>
 </manifest>
