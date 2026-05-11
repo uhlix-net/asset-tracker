@@ -42,6 +42,25 @@ jobs:
             echo "$GSJ" > android_app/android/app/google-services.json
           fi
 
+      - name: Regenerate android project from Flutter template
+        working-directory: android_app
+        run: |
+          # Regenerate android/ from the Flutter 3.24.5 template (keeps lib/, pubspec.yaml intact)
+          flutter create --platforms android . --org net.uhlix
+          # Restore our customisations
+          # minSdk 21 (Firebase requires >= 21)
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
+          # multiDexEnabled (needed for Firebase + our deps)
+          sed -i '/minSdkVersion 21/a\        multiDexEnabled true' android/app/build.gradle
+          # Add google-services plugin to settings.gradle
+          sed -i '/id "com.google.gms.google-services"/d' android/settings.gradle  # remove if already present
+          sed -i '/id "com.android.application"/a\    id "com.google.gms.google-services" version "4.4.0" apply false' android/settings.gradle
+          # Apply google-services in app/build.gradle
+          sed -i '/id "com.google.gms.google-services"/d' android/app/build.gradle  # remove if already present
+          sed -i '/id "com.android.application"/a\    id "com.google.gms.google-services"' android/app/build.gradle
+          echo "=== regenerated settings.gradle ===" && cat android/settings.gradle
+          echo "=== regenerated app/build.gradle ===" && cat android/app/build.gradle
+
       - name: Flutter pub get
         working-directory: android_app
         run: flutter pub get
