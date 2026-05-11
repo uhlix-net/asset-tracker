@@ -8,16 +8,6 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-        <!--
-          Required by Flutter 3.19.x: explicitly declare v2 embedding so
-          that v2-only plugins (cloud_firestore, firebase_*) are accepted.
-          Flutter 3.22+ no longer needs this tag, but 3.19.x uses it to
-          detect the embedding version before checking plugin compatibility.
-        -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2"/>
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -26,6 +16,15 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+
+            <!--
+              Required by Flutter 3.19.x: Flutter's Gradle plugin parses the
+              manifest and looks for this tag *inside an <activity> element*.
+              Placing it at <application> level is not found by the check.
+            -->
+            <meta-data
+                android:name="flutterEmbedding"
+                android:value="2"/>
 
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
