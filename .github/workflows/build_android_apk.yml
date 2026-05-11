@@ -27,7 +27,7 @@ jobs:
         with:
           flutter-version: "3.24.5"
           channel: stable
-          cache: true
+          cache: false   # force fresh download to avoid stale patched snapshot
 
       # Write the real google-services.json from a GitHub secret.
       # To configure: store the JSON contents as secret GOOGLE_SERVICES_JSON
@@ -86,6 +86,12 @@ jobs:
         continue-on-error: true
 
       # ── END DIAGNOSTIC BLOCK ────────────────────────────────────────────────
+
+      - name: "[diag] Confirm manifest and Flutter snapshot are clean"
+        run: |
+          echo "Flutter version:" && flutter --version | head -2
+          echo "Snapshot:" && ls -la "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot" | awk '{print $5, $6, $7, $8, $9}'
+          echo "Manifest before build:" && cat android_app/android/app/src/main/AndroidManifest.xml
 
       - name: Build release APK
         working-directory: android_app
