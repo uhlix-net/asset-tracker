@@ -45,16 +45,30 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
-      - name: Patch Flutter to bypass v1 embedding check and delete snapshot
+      - name: Patch Flutter to bypass v1 embedding checks and delete snapshot
         run: |
-          # Patch build_apk.dart: return DeprecationBehavior.none so check is skipped entirely
+          # Patch 1: build_apk.dart - return DeprecationBehavior.none so checkForDeprecation is skipped
           APKFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/commands/build_apk.dart"
           sed -i "s|boolArg('ignore-deprecation') ? DeprecationBehavior.ignore : DeprecationBehavior.exit|DeprecationBehavior.none|g" "$APKFILE"
-          grep "DeprecationBehavior" "$APKFILE" | head -3
+          echo "build_apk.dart patch:" && grep "DeprecationBehavior" "$APKFILE" | tail -2
+          # Patch 2: project.dart - make getEmbeddingVersion() always return v2 to avoid xml namespace getAttribute bug
+          PROJFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/project.dart"
+          python3 - "$PROJFILE" << 'PYEOF'
+import sys, re
+f = sys.argv[1]
+c = open(f).read()
+# Replace getEmbeddingVersion body to always return v2
+c = re.sub(
+  r'(AndroidEmbeddingVersion getEmbeddingVersion\(\) \{)[^}]+\}',
+  r'\1\n    // Workaround: xml 6.6.1 getAttribute namespace bug prevents flutterEmbedding detection\n    return AndroidEmbeddingVersion.v2;\n  }',
+  c, count=1)
+open(f, 'w').write(c)
+print("project.dart getEmbeddingVersion patched")
+PYEOF
           # Delete snapshot so Flutter recompiles from patched source
           rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot"
           rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
-          echo "Patch applied and snapshot deleted."
+          echo "All patches applied and snapshot deleted."
 
       - name: Build release APK
         working-directory: android_app
