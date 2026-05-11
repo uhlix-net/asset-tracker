@@ -27,8 +27,11 @@
         </activity>
 
         <!-- Don't delete the meta-data below.
-             This is used by the Flutter tool to detect v2 embedding. -->
+             This is used by the Flutter tool to detect v2 embedding.
+             xmlns:android is re-declared here so the xml package can resolve
+             the namespace prefix without walking up the ancestor tree. -->
         <meta-data
+            xmlns:android="http://schemas.android.com/apk/res/android"
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
