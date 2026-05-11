@@ -45,6 +45,28 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
+      - name: Diagnose manifest XML parsing
+        working-directory: android_app
+        run: |
+          cat > /tmp/check_manifest.dart << 'DARTEOF'
+          import 'dart:io';
+          import 'package:xml/xml.dart';
+          void main() {
+            final f = File('android/app/src/main/AndroidManifest.xml');
+            print('File exists: ${f.existsSync()}');
+            final doc = XmlDocument.parse(f.readAsStringSync());
+            final metas = doc.findAllElements('meta-data').toList();
+            print('meta-data count: ${metas.length}');
+            for (final m in metas) {
+              final n = m.getAttribute('android:name');
+              final v = m.getAttribute('android:value');
+              print('  name=$n value=$v');
+            }
+          }
+          DARTEOF
+          dart pub add xml --dev 2>/dev/null || true
+          dart run /tmp/check_manifest.dart || dart --enable-experiment=native-assets /tmp/check_manifest.dart || echo "dart run failed"
+
       - name: Build release APK
         working-directory: android_app
         run: flutter build apk --release
