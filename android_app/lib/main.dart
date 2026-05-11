@@ -58,20 +58,26 @@ class _FirebaseInitState extends State<_FirebaseInit> {
 
   Future<void> _init() async {
     try {
-      if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(
-            options: DefaultFirebaseOptions.currentPlatform);
+      // google-services.json is present so no explicit options needed.
+      // Catch duplicate-app in case the native SDK already self-initialised.
+      await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform);
+    } on FirebaseException catch (e) {
+      if (e.code != 'duplicate-app') {
+        if (mounted) setState(() => _error = e.toString());
+        return;
       }
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
+      // duplicate-app is fine — Firebase is already ready, proceed.
     } catch (e) {
-      if (mounted) {
-        setState(() => _error = e.toString());
-      }
+      if (mounted) setState(() => _error = e.toString());
+      return;
+    }
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
     }
   }
 
