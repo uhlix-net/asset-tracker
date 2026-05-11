@@ -46,6 +46,31 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
+      # ── DIAGNOSTIC BLOCK ────────────────────────────────────────────────────
+
+      - name: "[diag] xml element.dart getAttributeNode override"
+        run: grep -A40 "getAttributeNode" /home/runner/.pub-cache/hosted/pub.dev/xml-6.5.0/lib/src/xml/nodes/element.dart 2>/dev/null | head -45
+
+      - name: "[diag] xml XmlName qualified property"
+        run: grep -B2 -A10 "String get qualified\|get qualified" /home/runner/.pub-cache/hosted/pub.dev/xml-6.5.0/lib/src/xml/utils/name.dart 2>/dev/null | head -30
+
+      - name: "[diag] Dart getAttribute test on our manifest"
+        working-directory: diagnostics/xmltest
+        run: dart pub get && dart run bin/test_getattr.dart ../../android_app/android/app/src/main/AndroidManifest.xml
+
+      - name: "[diag] Fresh flutter create — build minimal app"
+        run: |
+          flutter create --org net.uhlix /tmp/minimalapp
+          cd /tmp/minimalapp && flutter build apk --release
+        continue-on-error: true
+
+      - name: "[diag] Compare fresh-app manifest vs ours"
+        run: |
+          echo "=== Fresh flutter create manifest ===" && cat /tmp/minimalapp/android/app/src/main/AndroidManifest.xml || echo "fresh app not created"
+          echo "=== Our manifest ===" && cat android_app/android/app/src/main/AndroidManifest.xml
+
+      # ── END DIAGNOSTIC BLOCK ────────────────────────────────────────────────
+
       - name: Build release APK
         working-directory: android_app
         run: flutter build apk --release

@@ -1,0 +1,9 @@
+name: xmltest
+description: Diagnostic — test xml package getAttribute on Android manifest
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  xml: ^6.5.0
