@@ -69,6 +69,22 @@ jobs:
           echo "=== Fresh flutter create manifest ===" && cat /tmp/minimalapp/android/app/src/main/AndroidManifest.xml || echo "fresh app not created"
           echo "=== Our manifest ===" && cat android_app/android/app/src/main/AndroidManifest.xml
 
+      - name: "[diag] Add Firebase to fresh app and build"
+        run: |
+          cd /tmp/minimalapp
+          # Inject Firebase deps into fresh app pubspec
+          sed -i '/^dependencies:/a\  firebase_core: ^2.32.0\n  cloud_firestore: ^4.17.5' pubspec.yaml
+          echo "=== pubspec after Firebase injection ===" && grep -A6 "^dependencies:" pubspec.yaml
+          # Add google-services plugin to settings.gradle
+          sed -i 's|id "com.android.application"|id "com.android.application"\n  id "com.google.gms.google-services" version "4.4.0" apply false|' android/settings.gradle
+          sed -i 's|id "com.android.application"|id "com.android.application"\n  id "com.google.gms.google-services"|' android/app/build.gradle
+          # Copy our google-services.json placeholder
+          cp "$GITHUB_WORKSPACE/android_app/android/app/google-services.json" android/app/ 2>/dev/null || echo "no google-services.json, using placeholder" && echo '{"project_info":{"project_id":"placeholder"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000"},"api_key":[{"current_key":"placeholder"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > android/app/google-services.json
+          flutter pub get
+          echo "=== flutter build apk result ==="
+          flutter build apk --release && echo "BUILD SUCCESS" || echo "BUILD FAILED: exit $?"
+        continue-on-error: true
+
       # ── END DIAGNOSTIC BLOCK ────────────────────────────────────────────────
 
       - name: Build release APK
