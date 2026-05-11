@@ -46,21 +46,16 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
-      - name: Diagnose xml getAttribute via dart test
-        working-directory: android_app
+      - name: Diagnose xml package location and manifest
         run: |
-          XMLSRC=$(find "$HOME/.pub-cache" "$FLUTTER_ROOT" -path "*/xml-*/lib/src*" -name "*.dart" 2>/dev/null | grep "has_attributes\|element" | head -1)
-          echo "xml src: $XMLSRC"
-          XMLPKG=$(find "$HOME/.pub-cache" "$FLUTTER_ROOT" -name "pubspec.yaml" -path "*/xml-*" 2>/dev/null | head -1)
-          if [ -n "$XMLPKG" ]; then echo "xml version:" && grep "^version:" "$XMLPKG"; fi
-          "$FLUTTER_ROOT/bin/dart" - << 'DARTEOF'
-import 'dart:io';
-void main() {
-  final lines = File('android/app/src/main/AndroidManifest.xml').readAsStringSync().split('\n');
-  print('Manifest lines: ${lines.length}');
-  lines.asMap().forEach((i, l) { if (l.contains('meta-data') || l.contains('flutterEmbedding')) print('L$i: $l'); });
-}
-DARTEOF
+          find "$HOME/.pub-cache" -name "pubspec.yaml" -path "*/xml-*" 2>/dev/null | head -3 | xargs -I{} grep "^version:" {}
+          python3 -c "
+c=open('android_app/android/app/src/main/AndroidManifest.xml').read()
+print('flutterEmbedding pos:', c.find('flutterEmbedding'))
+print('android:name= pos:', c.find('android:name='))
+print('android:value=2 pos:', c.find('android:value=\"2\"'))
+print('meta-data count:', c.count('<meta-data'))
+"
 
       - name: Build release APK
         working-directory: android_app
