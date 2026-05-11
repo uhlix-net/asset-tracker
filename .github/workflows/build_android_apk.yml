@@ -46,6 +46,14 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
+      - name: Diagnose xml getAttribute source
+        run: |
+          XMLSRC=$(find "$FLUTTER_ROOT" -path "*/xml-*/lib/src/xml/mixins/has_attributes.dart" 2>/dev/null | head -1)
+          echo "xml package: $XMLSRC"
+          if [ -n "$XMLSRC" ]; then grep -A30 "getAttributeNode" "$XMLSRC" | head -40; fi
+          XMLVER=$(find "$FLUTTER_ROOT" -name "pubspec.yaml" -path "*/xml-*/pubspec.yaml" 2>/dev/null | head -1)
+          if [ -n "$XMLVER" ]; then grep "^version:" "$XMLVER"; fi
+
       - name: Build release APK
         working-directory: android_app
         run: flutter build apk --release
