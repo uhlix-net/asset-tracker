@@ -1,9 +1,3 @@
-// PLACEHOLDER — replace with output of:
-//   flutterfire configure
-// after setting up your Firebase project.
-//
-// See FIREBASE_SETUP.md for step-by-step instructions.
-
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -20,13 +14,11 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // Replace these placeholder values with your real Firebase project values.
-  // Run `flutterfire configure` to generate this file automatically.
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey:            'YOUR_ANDROID_API_KEY',
-    appId:             '1:000000000000:android:0000000000000000',
-    messagingSenderId: '000000000000',
-    projectId:         'your-firebase-project-id',
-    storageBucket:     'your-firebase-project-id.appspot.com',
+    apiKey:            'AIzaSyBNrDpjZc4OAr4084OoWzdkFtMymseTwcA',
+    appId:             '1:439449257622:android:b70de0720bca2b703264b7',
+    messagingSenderId: '439449257622',
+    projectId:         'assettracker-daf80',
+    storageBucket:     'assettracker-daf80.firebasestorage.app',
   );
 }
