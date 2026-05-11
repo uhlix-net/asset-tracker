@@ -22,7 +22,7 @@ class CryptoService {
 
   /// Decrypt AES-256-GCM ciphertext.  Layout: [12-byte nonce][ciphertext+tag].
   static Uint8List decrypt(Uint8List data, Uint8List key) {
-    final nonce      = IV(data.sublist(0, 12));
+    final nonce      = enc.IV(data.sublist(0, 12));
     final ciphertext = enc.Encrypted(data.sublist(12));
     final encrypter  = enc.Encrypter(
         enc.AES(enc.Key(key), mode: enc.AESMode.gcm, padding: null));
