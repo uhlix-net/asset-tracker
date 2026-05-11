@@ -46,9 +46,6 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
-      - name: Diagnose xml name_matcher and element getAttributeNode
-        run: cat "$HOME/.pub-cache/hosted/pub.dev/xml-6.5.0/lib/src/xml/utils/name_matcher.dart" && echo "---" && grep -A20 "getAttributeNode" "$HOME/.pub-cache/hosted/pub.dev/xml-6.5.0/lib/src/xml/nodes/element.dart" 2>/dev/null | head -25
-
       - name: Build release APK
         working-directory: android_app
         run: flutter build apk --release
