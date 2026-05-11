@@ -45,11 +45,19 @@ jobs:
         working-directory: android_app
         run: flutter pub get
 
-      - name: Show generated android files after pub get
+      - name: Patch Flutter embedding check and delete snapshot
         run: |
-          echo "=== GeneratedPluginRegistrant ===" && find android_app/android -name "GeneratedPluginRegistrant*" -exec cat {} \; 2>/dev/null || echo "not found"
-          echo "=== flutter_export_environment.sh ===" && cat android_app/android/flutter_export_environment.sh 2>/dev/null || echo "not found"
-          echo "=== Flutter snapshot exists ===" && ls -la "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot" 2>/dev/null || echo "no snapshot"
+          PFILE="$FLUTTER_ROOT/packages/flutter_tools/lib/src/project.dart"
+          NS="http://schemas.android.com/apk/res/android"
+          # Fix: use namespace-aware getAttribute with prefix-based fallback
+          sed -i "s|metaData\.getAttribute('android:name')|metaData.getAttribute('name', namespace: '$NS') ?? metaData.getAttribute('android:name')|g" "$PFILE"
+          sed -i "s|metaData\.getAttribute('android:value')|metaData.getAttribute('value', namespace: '$NS') ?? metaData.getAttribute('android:value')|g" "$PFILE"
+          # Fix the application check too
+          sed -i "s|application\.getAttribute('android:name')|application.getAttribute('name', namespace: '$NS') ?? application.getAttribute('android:name')|g" "$PFILE"
+          # Delete snapshot so Flutter recompiles from patched source
+          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot"
+          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
+          echo "Patch applied. Snapshot deleted."
 
       - name: Build release APK
         working-directory: android_app
