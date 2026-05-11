@@ -8,6 +8,20 @@ from ..config import APP_NAME
 # Each entry: (version, title, [bullet points])
 HISTORY = [
     (
+        "1.2.1",
+        "Bug fix — main window now fills full height when expanded vertically",
+        [
+            "Removed addStretch(1) that was absorbing extra vertical space and "
+            "keeping the asset list and preview panel anchored to the top of "
+            "the window regardless of window height",
+            "Removed _lock_splitter_height() which called setFixedHeight() on "
+            "the splitter at startup, preventing it from growing when the "
+            "window was resized vertically",
+            "The splitter now carries stretch=1 in the layout so it expands "
+            "to fill all available space; toolbar and divider remain at the top",
+        ],
+    ),
+    (
         "1.2.0",
         "Bug fix — Android manifest: restore flutterEmbedding v2 declaration",
         [

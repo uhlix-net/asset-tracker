@@ -11,7 +11,7 @@ Unicode True
 ; ── Definitions ─────────────────────────────────────────────
 !define APP_NAME      "Asset Tracker"
 ; NOTE: keep APP_VERSION in sync with asset_tracker/config.py APP_VERSION
-!define APP_VERSION   "1.2.0"
+!define APP_VERSION   "1.2.1"
 !define APP_PUBLISHER "uhlix-net"
 !define UNINST_KEY    "Software\Microsoft\Windows\CurrentVersion\Uninstall\AssetTracker"
 !define PYTHON_URL    "https://www.python.org/ftp/python/3.12.9/python-3.12.9-amd64.exe"
@@ -166,6 +166,32 @@ FunctionEnd
 ;  .onInit — Python check before any pages appear
 ; ============================================================
 Function .onInit
+    ; ── Check if Asset Tracker is already running ──────────────────────────
+    ; Write PowerShell check to a temp file to avoid NSIS $ interpolation.
+    ; Inside FileWrite strings, $$ produces a literal $ in the output file.
+    FileOpen  $R9 "$TEMP\check_at.ps1" w
+    FileWrite $R9 '$$p = Get-Process -Name pythonw -ErrorAction SilentlyContinue'
+    FileWrite $R9 "$\r$\n"
+    FileWrite $R9 'if ($$p | Where-Object { $$_.MainWindowTitle -like "*Asset Tracker*" }) { exit 1 }'
+    FileWrite $R9 "$\r$\n"
+    FileWrite $R9 "exit 0$\r$\n"
+    FileClose $R9
+
+    checkRunning:
+    nsExec::ExecToStack \
+        'powershell.exe -NoProfile -WindowStyle Hidden -File "$TEMP\check_at.ps1"'
+    Pop $R0   ; exit code: 1 = running, 0 = not running
+    Pop $R1
+    ${If} $R0 == 1
+        MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION \
+            "${APP_NAME} is currently open.$\r$\n$\r$\n\
+            Please close it and click Retry to continue,$\r$\n\
+            or Cancel to exit the installer." \
+            IDRETRY checkRunning
+        Abort
+    ${EndIf}
+    Delete "$TEMP\check_at.ps1"
+
     Call FindPython
     ${If} $PythonExe == ""
         MessageBox MB_YESNO|MB_ICONQUESTION \
