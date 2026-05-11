@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QFileDialog,
     QInputDialog, QLineEdit, QStatusBar,
 )
-from PyQt6.QtCore import Qt, QSettings, QTimer
+from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QAction
 
 from ..database import Database
@@ -140,9 +140,7 @@ class MainWindow(QMainWindow):
             half = self.width() // 2
             self._splitter.setSizes([half, half])
 
-        root.addWidget(self._splitter)
-        # Absorbs extra vertical space so all content stays at the top
-        root.addStretch(1)
+        root.addWidget(self._splitter, 1)  # stretch=1 fills all remaining vertical space
 
         # Toolbar signals
         self._toolbar.add_clicked.connect(self._on_add)
@@ -415,18 +413,6 @@ class MainWindow(QMainWindow):
         UpdateHistoryDialog(self).exec()
 
     # ── Close / persist ───────────────────────────────────────────────────────
-
-    def showEvent(self, event) -> None:
-        super().showEvent(event)
-        if not hasattr(self, "_height_locked"):
-            self._height_locked = True
-            # Run after Qt finishes its first layout pass so height() is correct
-            QTimer.singleShot(0, self._lock_splitter_height)
-
-    def _lock_splitter_height(self) -> None:
-        h = self._splitter.height()
-        if h > 0:
-            self._splitter.setFixedHeight(h)
 
     def closeEvent(self, event) -> None:
         if self._settings.value("auto_backup_on_exit", False, type=bool):
