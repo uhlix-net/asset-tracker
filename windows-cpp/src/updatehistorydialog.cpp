@@ -1,0 +1,241 @@
+#include "updatehistorydialog.h"
+
+#include <QDialogButtonBox>
+#include <QFrame>
+#include <QLabel>
+#include <QScrollArea>
+#include <QStringList>
+#include <QVBoxLayout>
+
+#include "config.h"
+
+namespace {
+
+struct Release {
+    const char *version;
+    const char *title;
+    QStringList notes;
+};
+
+// Newest first. Versions from 1.2.1 down are the Python edition.
+const Release kHistory[] = {
+    {"0.1.0", "C++ edition: first release, replacing the Python edition", {
+        "Rewritten in C++17 and Qt 6; existing data, settings and cloud copies carry over unchanged",
+        "Firebase and sync passwords are now encrypted for your Windows account instead of stored in plain te"
+         "xt, and old ones are converted at first start",
+        "Backups now restore on any PC. Backups made by the Python edition still need the Windows account tha"
+         "t created them",
+        "A wrong backup password or damaged archive is now caught before your data is touched, and restore no"
+         " longer needs an app restart",
+        "New: Restore from Cloud, for recovering everything on a new PC",
+        "Sync now removes deleted photos from the cloud, and asks before deleting assets that are no longer o"
+         "n this PC",
+        "Sync stops if the sync password does not match the cloud copy",
+        "Opening a receipt now shows the receipt rather than the encrypted file",
+        "Purchase Price and Current Value columns now sort by amount",
+    }},
+    {"1.2.1", "Bug fix — main window now fills full height when expanded vertically", {
+        "Removed addStretch(1) that was absorbing extra vertical space and keeping the asset list and preview"
+         " panel anchored to the top of the window regardless of window height",
+        "Removed _lock_splitter_height() which called setFixedHeight() on the splitter at startup, preventing"
+         " it from growing when the window was resized vertically",
+        "The splitter now carries stretch=1 in the layout so it expands to fill all available space; toolbar "
+         "and divider remain at the top",
+    }},
+    {"1.2.0", "Bug fix — Android manifest: restore flutterEmbedding v2 declaration", {
+        "Flutter 3.19.x requires flutterEmbedding=2 in AndroidManifest.xml to confirm v2 embedding; without i"
+         "t, v2-only plugins such as cloud_firestore refuse to load",
+        "The meta-data is placed at the <application> level so it is visible to the Flutter Gradle plugin bef"
+         "ore activity-level checks",
+    }},
+    {"1.1.9", "Bug fix — Android build: Flutter 3.19.6 + Firebase v2", {
+        "Pinned CI to Flutter 3.19.6 — Flutter 3.22 has an over-aggressive v1 embedding check that rejects pl"
+         "ugins with any legacy registration code, including packages that are functionally v2-compatible",
+        "Downgraded Firebase packages to v2.x (firebase_core 2.x, firebase_auth 4.x, cloud_firestore 4.x, fir"
+         "ebase_storage 11.x) which require Flutter >=3.19 — the Flutter/Dart API surface is identical to v3.x"
+         " for everything the app uses",
+        "Fixed Kotlin Gradle plugin ID: kotlin-android → org.jetbrains.kotlin.android",
+    }},
+    {"1.1.8", "Bug fix — remove flutter_secure_storage from Android app", {
+        "Removed flutter_secure_storage: its Android companion object retains PluginRegistry.Registrar, trigg"
+         "ering Flutter 3.22's deleted-v1-embedding build check",
+        "Login credentials are no longer persisted between sessions — users enter Firebase email, password, a"
+         "nd sync password each time the app opens (the AES encryption key lives in memory only)",
+    }},
+    {"1.1.7", "Bug fix — Android v1 embedding error from transitive dependency", {
+        "Removed unused packages cached_network_image and flutter_spinkit from the Android app: cached_networ"
+         "k_image pulled in sqflite via flutter_cache_manager, and sqflite retains PluginRegistry.Registrar wh"
+         "ich triggers Flutter 3.22's deleted-v1-embedding build check. Neither package was used in the app co"
+         "de.",
+    }},
+    {"1.1.6", "Bug fix — Android build: missing resources and manifest corrections", {
+        "Added required Android resource files missing from the initial Flutter project structure: mipmap lau"
+         "ncher icons (all densities), styles.xml (light + night), and launch_background.xml",
+        "Fixed AndroidManifest.xml: removed deprecated flutterEmbedding meta-data that caused the v1 embeddin"
+         "g error; added correct NormalTheme meta-data inside the activity",
+        "Set explicit minSdk 21 in build.gradle (required by Firebase)",
+        "Updated Gradle plugin versions to match Flutter 3.22",
+    }},
+    {"1.1.5", "Bug fix — GitHub Actions Android build workflow", {
+        "Fixed a workflow error: secrets context cannot be used in step if conditions; moved the check inside"
+         " the run script using a bash conditional instead",
+    }},
+    {"1.1.4", "Firebase cloud sync and Android companion app", {
+        "File → Sync to Cloud (Firebase): all assets and files are AES-256-GCM encrypted with a sync password"
+         " before upload — Google only ever stores ciphertext",
+        "PBKDF2-HMAC-SHA256 (600 000 iterations) derives the sync key from the password — the same algorithm "
+         "runs on Android",
+        "Android companion app: sign in with Firebase credentials + sync password to browse your full asset i"
+         "nventory, view photos and receipts, and see all asset details",
+        "GitHub Actions workflow automatically builds the Android APK on every push to main (see FIREBASE_SET"
+         "UP.md for instructions)",
+    }},
+    {"1.1.3", "PDF report: TOC spacing, borderless photos, embedded receipts", {
+        "Added whitespace below the Table of Contents heading rule for improved readability",
+        "Removed borders from asset photo grid — images now display without surrounding lines",
+        "Receipt images are now embedded inline in the report instead of listing 'Yes/No'; PDF receipts are r"
+         "endered page-by-page and inserted directly into the document",
+    }},
+    {"1.1.2", "DPAPI encryption for photos and receipts; export and help", {
+        "All uploaded photos and receipt files are now encrypted on disk using Windows DPAPI (tied to your Wi"
+         "ndows user account — no password required, decryption is automatic)",
+        "File → Export Asset Files: decrypts and copies all files to a folder you choose, for attaching to em"
+         "ails or claim submissions",
+        "Encryption reminder note added below the Add Photos button in the Add Asset and Edit Asset dialogs",
+        "Help → AssetTracker Help: detailed guide to DPAPI encryption, what it protects, and how to obtain un"
+         "encrypted file copies",
+    }},
+    {"1.1.1", "App icon, insurer info on reports, single-asset PDF", {
+        "App icon (navy \"AT\" logo) now appears in the taskbar, window title bar, Start Menu shortcut, and D"
+         "esktop shortcut",
+        "Insurer details dialog (insurance company, policy number, claim number, date of loss) shown before g"
+         "enerating the full report — details appear on the cover page and are remembered between sessions",
+        "\"Print This Asset\" button in the asset details panel generates a one-page PDF record for the selec"
+         "ted asset, including photos and receipt, with insurer info pre-filled",
+    }},
+    {"1.1.0", "UI improvements — icons, thumbnails, sort indicators, empty state", {
+        "Toolbar buttons now show icons (Add, Edit, Delete, Duplicate, Backup, Print Report)",
+        "Asset table shows a 40×40 photo thumbnail in the first column for quick visual identification",
+        "Column sort indicators (▲/▼) now appear on the active sort column in the asset table",
+        "Empty-state message shown when no assets exist: \"No assets yet — click Add Asset to get started\"",
+        "Installer version now reliably matches the app version in Windows Settings → Apps → Installed Apps",
+    }},
+    {"1.0.11", "TOC header readability; Update History v1.0.1 entry", {
+        "PDF report table of contents: column headers now use white background with navy bold text and a navy"
+         " underline rule for clear readability",
+        "Added missing v1.0.1 entry to Update History",
+    }},
+    {"1.0.10", "Installer version fix; receipt image in PDF report", {
+        "Fixed the version shown in Windows Settings > Apps > Installed Apps — the installer was still report"
+         "ing v1.0.2",
+        "PDF inventory report now includes the receipt image for each asset that has one (image receipts embe"
+         "dded; PDF receipts noted by filename)",
+    }},
+    {"1.0.9", "Bug fix — PDF report generation", {
+        "Fixed a crash when generating the PDF report caused by an invalid ReportLab Table parameter (colPadd"
+         "ings)",
+    }},
+    {"1.0.8", "Legal-grade PDF inventory report", {
+        "Complete redesign of the PDF report for insurance claim submission",
+        "Formal cover page with declaration statement and owner signature line",
+        "Running header (document title, date) and footer (confidential notice, page number) on every page",
+        "Assets grouped by category with a navy category divider page",
+        "Structured per-asset records with two-column detail grid, notes section, and 3-column photo grid wit"
+         "h file name captions",
+        "Professional navy/slate colour scheme replacing the previous casual blue palette",
+    }},
+    {"1.0.7", "Receipt link and UI improvements", {
+        "Receipt field in the asset details panel is now a clickable link that opens the receipt file in the "
+         "default viewer",
+        "Receipt checkmark (✓) is now displayed in green",
+    }},
+    {"1.0.6", "New categories and field rename", {
+        "Added \"Firearms\" and \"Personal Effects\" asset categories",
+        "Renamed \"Purchase Value\" to \"Purchase Price\" throughout the app (forms, list, preview panel, PDF"
+         " report, CSV export, status bar)",
+    }},
+    {"1.0.5", "Installer and Help improvements", {
+        "Removed version number from installer dialog titles",
+        "Added Update History dialog (Help menu)",
+    }},
+    {"1.0.4", "Python installer progress bar", {
+        "Python installation now shows a progress bar dialog instead of running invisibly in the background",
+    }},
+    {"1.0.3", "About page data paths", {
+        "About dialog now displays the full path to the database file and the assets folder",
+        "Paths are selectable by mouse for easy copying",
+    }},
+    {"1.0.2", "Layout improvements", {
+        "Asset table and preview panel each take 50% of the window width and scale together when the window i"
+         "s resized",
+        "Divider line below the toolbar always spans the full window width",
+        "Toolbar, table, and preview panel anchored to the top — enlarging the window vertically adds empty s"
+         "pace below",
+    }},
+    {"1.0.1", "Layout — sticky content anchored to top", {
+        "Toolbar, asset table, and preview panel anchored to the top of the window; enlarging the window vert"
+         "ically adds empty space below rather than stretching the content",
+    }},
+    {"1.0.0", "Initial release", {
+        "Track household assets with photos, sales receipts, purchase date, purchase price, and current/appra"
+         "ised value",
+        "Assign assets to categories (Living Room, Kitchen, Garage, etc.) with serial number and model number"
+         " fields",
+        "Search assets by name and filter by category",
+        "Preview panel shows thumbnails — click any photo to view full size",
+        "Right-click menu and bulk multi-select delete",
+        "Duplicate an existing asset to quickly add similar items",
+        "Encrypted ZIP backup (AES-256) with password, and restore from backup",
+        "PDF report with title page, table of contents, and per-asset pages grouped by category — suitable fo"
+         "r insurance claims",
+        "CSV export compatible with Excel",
+        "Auto-backup prompt on exit (optional, toggleable in File menu)",
+        "Live status bar showing asset count and total purchase/current values",
+        "Windows installer with automatic Python detection and installation",
+    }},
+};
+
+} // namespace
+
+UpdateHistoryDialog::UpdateHistoryDialog(QWidget *parent) : QDialog(parent) {
+    setWindowTitle(QString("%1 — Update History").arg(Config::kAppName));
+    setMinimumSize(520, 480);
+    resize(560, 560);
+
+    auto *outer = new QVBoxLayout(this);
+    auto *scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    outer->addWidget(scroll);
+
+    auto *container = new QWidget;
+    scroll->setWidget(container);
+    auto *layout = new QVBoxLayout(container);
+    layout->setAlignment(Qt::AlignTop);
+    layout->setSpacing(16);
+
+    for (const Release &release : kHistory) {
+        auto *heading = new QLabel(QString("<b>v%1</b> &nbsp; %2").arg(release.version,
+                                                                       release.title));
+        heading->setWordWrap(true);
+        heading->setStyleSheet("font-size: 13px; color: #1a5276;");
+        layout->addWidget(heading);
+
+        for (const QString &note : release.notes) {
+            auto *row = new QLabel(QStringLiteral("  •  ") + note);
+            row->setWordWrap(true);
+            row->setTextFormat(Qt::PlainText);
+            row->setStyleSheet("color: #333; font-size: 11px;");
+            layout->addWidget(row);
+        }
+
+        auto *line = new QFrame;
+        line->setFrameShape(QFrame::HLine);
+        line->setStyleSheet("color: #e0e0e0;");
+        layout->addWidget(line);
+    }
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::accept);
+    outer->addWidget(buttons);
+}
