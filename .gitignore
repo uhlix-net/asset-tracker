@@ -45,3 +45,7 @@ android_app/android/local.properties
 android_app/android/key.properties
 # google-services.json contains real Firebase config — provide your own
 # android_app/android/app/google-services.json  (placeholder is tracked)
+
+# C++ edition
+windows-cpp/build/
+windows-cpp/installer/Output/
