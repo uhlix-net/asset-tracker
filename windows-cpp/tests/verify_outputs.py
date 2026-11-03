@@ -42,14 +42,15 @@ assert decrypt(base64.b64decode(blob["file"])) == b"file bytes"
 print("ok  AES-GCM blobs decrypt with the Android scheme")
 
 dump = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/__dump"))
-assets = {k: decrypt_json(v["data"]["stringValue"]) for k, v in dump["docs"].items()
-          if k.startswith("assets/")}
+# Documents are keyed "<uid>/<collection>/<id>"; the reference account is uid1.
+assets = {k.split("/", 1)[1]: decrypt_json(v["data"]["stringValue"])
+          for k, v in dump["docs"].items() if k.startswith("uid1/assets/")}
 tv = assets["assets/00001"]
 assert tv["value_estimate"] == "1234567.89", tv["value_estimate"]
 assert float(tv["current_value"]) == 999.5 and tv["has_receipt"] == "1"
 assert assets["assets/00002"]["value_estimate"] == ""
 
-manifest = decrypt_json(dump["docs"]["metadata/manifest"]["data"]["stringValue"])
+manifest = decrypt_json(dump["docs"]["uid1/metadata/manifest"]["data"]["stringValue"])
 stored = manifest["00001"][0]["stored_name"]
 raw = base64.b64decode(dump["objects"][f"users/uid1/files/00001/{stored}"])
 assert len(decrypt(raw)) > 0

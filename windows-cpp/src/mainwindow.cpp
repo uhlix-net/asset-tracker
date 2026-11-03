@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QKeySequence>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -15,6 +16,7 @@
 #include <QPointer>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -23,11 +25,14 @@
 #include "assetlist.h"
 #include "backup.h"
 #include "busy.h"
+#include "cloudconfig.h"
+#include "cloudsetupdialog.h"
 #include "config.h"
 #include "csvexport.h"
 #include "database.h"
 #include "helpdialog.h"
 #include "insurerinfodialog.h"
+#include "preferencesdialog.h"
 #include "previewpanel.h"
 #include "report.h"
 #include "storage.h"
@@ -52,7 +57,21 @@ MainWindow::MainWindow(Database *db, QWidget *parent)
     buildStatusBar();
     refreshAssets();
 
-    if (!Config::isTestRun()) onCheckForUpdates(false);
+    if (!Config::isTestRun()) {
+        onCheckForUpdates(false);
+        QTimer::singleShot(0, this, &MainWindow::firstRunSetup);
+    }
+}
+
+// Offered once, at first start; Preferences can run it again at any time.
+void MainWindow::firstRunSetup() {
+    if (CloudConfig::setupPrompted() || CloudConfig::hasAccount()) return;
+    CloudSetupDialog dialog(CloudSetupDialog::StartAt::Welcome, this);
+    if (dialog.exec() != QDialog::Accepted) return;
+    if (m_db->getTotals().count > 0
+        && QMessageBox::question(this, "Online Sync",
+               "Online sync is set up. Upload your inventory now?") == QMessageBox::Yes)
+        onSync();
 }
 
 void MainWindow::buildMenu() {
@@ -60,7 +79,9 @@ void MainWindow::buildMenu() {
     file->addAction("Export to CSV...", this, &MainWindow::onExportCsv);
     file->addAction("Export Asset Files...", this, &MainWindow::onExportFiles);
     file->addSeparator();
-    file->addAction("Sync to Cloud (Firebase)...", this, &MainWindow::onSync);
+    QAction *syncNow = file->addAction("Sync Now", this, &MainWindow::onSync);
+    syncNow->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    file->addAction("Restore from Cloud...", this, &MainWindow::onRestoreFromCloud);
     file->addSeparator();
     file->addAction("Create Backup...", this, &MainWindow::onBackup);
     file->addAction("Restore from Backup...", this, &MainWindow::onRestore);
@@ -73,6 +94,8 @@ void MainWindow::buildMenu() {
         Config::openSettings()->setValue("auto_backup_on_exit", checked);
     });
 
+    file->addSeparator();
+    file->addAction("Preferences...", this, &MainWindow::onPreferences);
     file->addSeparator();
     file->addAction("Exit", this, &QWidget::close);
 
@@ -295,9 +318,34 @@ void MainWindow::onDataReplaced() {
     refreshAssets();
 }
 
-void MainWindow::onSync() {
-    SyncDialog dialog(m_db, this);
+bool MainWindow::ensureCloudSetUp() {
+    if (CloudConfig::hasAccount() && CloudConfig::project().isComplete()) return true;
+    const auto answer = QMessageBox::question(this, "Online Sync",
+        "Online sync isn't set up on this PC yet. Set it up now?");
+    if (answer != QMessageBox::Yes) return false;
+    CloudSetupDialog dialog(CloudSetupDialog::StartAt::Welcome, this);
+    return dialog.exec() == QDialog::Accepted;
+}
+
+void MainWindow::runCloud(int mode) {
+    SyncDialog dialog(m_db, static_cast<SyncDialog::Mode>(mode), this);
     connect(&dialog, &SyncDialog::dataReplaced, this, &MainWindow::onDataReplaced);
+    dialog.exec();
+}
+
+void MainWindow::onSync() {
+    if (ensureCloudSetUp()) runCloud(static_cast<int>(SyncDialog::Mode::Sync));
+}
+
+void MainWindow::onRestoreFromCloud() {
+    if (ensureCloudSetUp()) runCloud(static_cast<int>(SyncDialog::Mode::Restore));
+}
+
+void MainWindow::onPreferences() {
+    PreferencesDialog dialog(m_db, this);
+    connect(&dialog, &PreferencesDialog::syncRequested, this, [this](bool rekey) {
+        runCloud(static_cast<int>(rekey ? SyncDialog::Mode::Rekey : SyncDialog::Mode::Sync));
+    });
     dialog.exec();
 }
 

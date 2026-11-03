@@ -28,21 +28,25 @@ struct CloudAsset {
 };
 
 struct PushResult {
-    int assets = 0;
+    int assets = 0;                 // Uploaded this time.
     int files = 0;
+    int unchangedAssets = 0;        // Already in the cloud and unchanged.
+    int unchangedFiles = 0;
     QStringList errors;
     QVector<CloudAsset> cloudOnly;  // In the cloud, not on this PC. Left in place.
     bool keyMismatch = false;       // Nothing was sent: see allowKeyChange.
+    SyncState state;                // Store this; pass it to the next push.
 };
 
-// Uploads every local asset and removes cloud files this PC no longer has for
-// those assets. Assets missing locally are never deleted here, only reported, so
-// an empty or partial install cannot wipe the only remaining copy. Unless
-// allowKeyChange is set, stops before writing when no cloud record decrypts,
-// which means the sync password differs from the one already in use.
+// Uploads what changed since the last push, judged by state and by what the cloud
+// actually holds, so anything missing there is sent again. Removes cloud files this
+// PC no longer has for its own assets. Assets missing locally are never deleted
+// here, only reported, so an empty or partial install cannot wipe the only
+// remaining copy. Unless allowKeyChange is set, stops before writing when no cloud
+// record decrypts, which means the sync password differs from the one in use.
 PushResult push(const FirebaseConfig &config, const QString &syncPassword,
-                const QVector<AssetRecord> &records, bool allowKeyChange,
-                const Progress &progress);
+                const QVector<AssetRecord> &records, const SyncState &state,
+                bool allowKeyChange, const Progress &progress);
 
 // Removes these assets, their files and their manifest entries from the cloud.
 void deleteFromCloud(const FirebaseConfig &config, const QString &syncPassword,
@@ -56,9 +60,25 @@ struct RestoreResult {
 };
 
 // Downloads the whole cloud copy into a staging tree, re-encrypted for this
-// Windows account. Nothing live is touched.
+// Windows account, with sync state recorded so the next push sends nothing.
 RestoreResult downloadToStaging(const FirebaseConfig &config, const QString &syncPassword,
                                 const Progress &progress);
+
+// ── Accounts ─────────────────────────────────────────────────────────────────
+
+void signIn(const FirebaseConfig &config);           // Throws with a user-facing reason.
+void createAccount(const FirebaseConfig &config);
+void sendPasswordReset(const FirebaseConfig &config, const QString &email);
+void changeAccountPassword(const FirebaseConfig &config, const QString &newPassword);
+
+enum class KeyCheck { NoCloudData, Matches, DoesNotMatch };
+KeyCheck checkSyncPassword(const FirebaseConfig &config, const QString &syncPassword);
+
+// Everything under users/{uid}/: records, manifest and files. The account stays.
+void deleteAllCloudData(const FirebaseConfig &config, const Progress &progress);
+
+// deleteAllCloudData(), then the login itself.
+void deleteAccount(const FirebaseConfig &config, const Progress &progress);
 
 // The string-typed record the Android app parses. Exposed for tests.
 QJsonObject assetToJson(const Asset &asset);

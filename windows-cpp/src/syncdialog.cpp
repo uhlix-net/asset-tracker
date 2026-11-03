@@ -1,211 +1,88 @@
 #include "syncdialog.h"
 
-#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QDir>
-#include <QFormLayout>
-#include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
-#include <QTabWidget>
 #include <QThread>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "backup.h"
-#include "config.h"
+#include "cloudconfig.h"
 #include "database.h"
-#include "secretstore.h"
-#include "theme.h"
 
-namespace {
-
-const char kPasswordKey[] = "firebase/password";
-const char kSyncPasswordKey[] = "firebase/sync_password";
-const char kEncSuffix[] = "_enc";
-
-// Reads a password, stored only in its DPAPI form.
-QString readSecret(QSettings &settings, const QString &key) {
-    return SecretStore::unprotect(settings.value(key + kEncSuffix).toString());
-}
-
-void writeSecret(QSettings &settings, const QString &key, const QString &value) {
-    settings.setValue(key + kEncSuffix, SecretStore::protect(value));
-    settings.remove(key);
-}
-
-void migrateSecret(QSettings &settings, const QString &key) {
-    const QString plain = settings.value(key).toString();
-    if (!settings.contains(key)) return;
-    // If DPAPI failed here, leave the value for the next start rather than lose it.
-    const QString sealed = SecretStore::protect(plain);
-    if (plain.isEmpty() || !sealed.isEmpty()) {
-        if (!plain.isEmpty()) settings.setValue(key + kEncSuffix, sealed);
-        settings.remove(key);
-    }
-}
-
-} // namespace
-
-void migrateStoredPasswords() {
-    const auto settings = Config::openSettings();
-    migrateSecret(*settings, kPasswordKey);
-    migrateSecret(*settings, kSyncPasswordKey);
-}
-
-SyncDialog::SyncDialog(Database *db, QWidget *parent)
+SyncDialog::SyncDialog(Database *db, Mode mode, QWidget *parent)
     : QDialog(parent)
     , m_db(db)
+    , m_mode(mode)
 {
-    setWindowTitle("Cloud Sync — Firebase");
-    setMinimumWidth(460);
-    buildUi();
-    loadSettings();
-}
+    setWindowTitle(mode == Mode::Restore ? "Restore from Cloud" : "Online Sync");
+    setMinimumWidth(440);
 
-void SyncDialog::buildUi() {
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(20, 16, 20, 16);
     layout->setSpacing(10);
-    auto *tabs = new QTabWidget;
-    layout->addWidget(tabs);
 
-    auto *configTab = new QWidget;
-    auto *configForm = new QFormLayout(configTab);
-    configForm->setContentsMargins(14, 14, 14, 14);
-    configForm->setVerticalSpacing(8);
-    configForm->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
-
-    m_apiKey = new QLineEdit;
-    m_projectId = new QLineEdit;
-    m_bucket = new QLineEdit;
-    m_bucket->setPlaceholderText("your-project-id.appspot.com");
-    m_email = new QLineEdit;
-    m_email->setPlaceholderText("user@example.com");
-    m_firebasePassword = new QLineEdit;
-    m_firebasePassword->setEchoMode(QLineEdit::Password);
-
-    configForm->addRow("API key", m_apiKey);
-    configForm->addRow("Project ID", m_projectId);
-    configForm->addRow("Storage bucket", m_bucket);
-    configForm->addRow("Email", m_email);
-    configForm->addRow("Password", m_firebasePassword);
-
-    auto *note = new QLabel("Your Firebase project's details. Passwords are stored "
-                            "encrypted for your Windows account.");
-    note->setObjectName("hint");
-    note->setWordWrap(true);
-    configForm->addRow(note);
-    tabs->addTab(configTab, "Firebase");
-
-    auto *passwordTab = new QWidget;
-    auto *passwordForm = new QFormLayout(passwordTab);
-    passwordForm->setContentsMargins(14, 14, 14, 14);
-    passwordForm->setVerticalSpacing(8);
-    passwordForm->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
-
-    m_syncPasswordEdit = new QLineEdit;
-    m_syncPasswordEdit->setEchoMode(QLineEdit::Password);
-    m_remember = new QCheckBox("Remember on this PC (stored encrypted)");
-
-    auto *encNote = new QLabel("Everything is encrypted with this password before it leaves "
-                               "your PC, so Google cannot read your files. Use the same "
-                               "password in the Android app.");
-    encNote->setObjectName("hint");
-    encNote->setWordWrap(true);
-
-    passwordForm->addRow("Sync password", m_syncPasswordEdit);
-    passwordForm->addRow(m_remember);
-    passwordForm->addRow(encNote);
-    tabs->addTab(passwordTab, "Encryption");
-
-    m_status = new QLabel("Ready.");
-    m_status->setObjectName("hint");
+    m_heading = new QLabel(mode == Mode::Restore ? "Restoring from the cloud"
+                           : mode == Mode::Rekey ? "Uploading under the new sync password"
+                                                 : "Syncing your inventory");
+    m_heading->setObjectName("title");
+    m_status = new QLabel("Starting…");
     m_status->setWordWrap(true);
     m_progress = new QProgressBar;
     m_progress->setRange(0, 0);
-    m_progress->setVisible(false);
-    layout->addWidget(m_status);
-    layout->addWidget(m_progress);
+    m_progress->setTextVisible(false);
 
-    m_syncButton = new QPushButton("Sync Now");
-    Theme::markPrimary(m_syncButton);
-    connect(m_syncButton, &QPushButton::clicked, this, &SyncDialog::onSync);
-    m_restoreButton = new QPushButton("Restore from Cloud...");
-    connect(m_restoreButton, &QPushButton::clicked, this, &SyncDialog::onRestore);
-
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Close);
-    buttons->button(QDialogButtonBox::Save)->setText("Save Settings");
-    connect(buttons, &QDialogButtonBox::accepted, this, &SyncDialog::onSave);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+    m_close = buttons->button(QDialogButtonBox::Close);
     connect(buttons, &QDialogButtonBox::rejected, this, &SyncDialog::reject);
 
-    auto *actions = new QHBoxLayout;
-    actions->addWidget(m_syncButton);
-    actions->addWidget(m_restoreButton);
-    actions->addStretch();
-    layout->addLayout(actions);
+    layout->addWidget(m_heading);
+    layout->addWidget(m_status);
+    layout->addWidget(m_progress);
+    layout->addStretch();
     layout->addWidget(buttons);
 }
 
-void SyncDialog::loadSettings() {
-    const auto settings = Config::openSettings();
-    m_apiKey->setText(settings->value("firebase/api_key").toString());
-    m_projectId->setText(settings->value("firebase/project_id").toString());
-    m_bucket->setText(settings->value("firebase/bucket").toString());
-    m_email->setText(settings->value("firebase/email").toString());
-    m_firebasePassword->setText(readSecret(*settings, kPasswordKey));
-
-    // Older versions stored this as the string "True"; QVariant reads that as true too.
-    const bool remember = settings->value("firebase/remember_sync_password").toBool();
-    m_remember->setChecked(remember);
-    if (remember) m_syncPasswordEdit->setText(readSecret(*settings, kSyncPasswordKey));
+void SyncDialog::showEvent(QShowEvent *event) {
+    QDialog::showEvent(event);
+    if (m_started) return;
+    m_started = true;
+    QTimer::singleShot(0, this, &SyncDialog::start);
 }
 
-void SyncDialog::onSave() {
-    const auto settings = Config::openSettings();
-    settings->setValue("firebase/api_key", m_apiKey->text().trimmed());
-    settings->setValue("firebase/project_id", m_projectId->text().trimmed());
-    settings->setValue("firebase/bucket", m_bucket->text().trimmed());
-    settings->setValue("firebase/email", m_email->text().trimmed());
-    settings->setValue("firebase/remember_sync_password", m_remember->isChecked());
-    writeSecret(*settings, kPasswordKey, m_firebasePassword->text());
-    writeSecret(*settings, kSyncPasswordKey,
-                m_remember->isChecked() ? m_syncPasswordEdit->text() : QString());
-    QMessageBox::information(this, "Saved", "Cloud sync settings saved.");
-}
-
-bool SyncDialog::readForm(FirebaseConfig *config, QString *syncPassword) {
-    config->apiKey = m_apiKey->text().trimmed();
-    config->projectId = m_projectId->text().trimmed();
-    config->bucket = m_bucket->text().trimmed();
-    config->email = m_email->text().trimmed();
-    config->password = m_firebasePassword->text();
-    *syncPassword = m_syncPasswordEdit->text();
-
-    if (config->apiKey.isEmpty() || config->projectId.isEmpty() || config->bucket.isEmpty()
-        || config->email.isEmpty() || config->password.isEmpty() || syncPassword->isEmpty()) {
-        QMessageBox::warning(this, "Incomplete",
-                             "Please fill in all Firebase fields and the sync password.");
-        return false;
+void SyncDialog::start() {
+    m_config = CloudConfig::firebaseConfig();
+    m_syncPassword = CloudConfig::syncPassword();
+    if (m_syncPassword.isEmpty()) {
+        bool ok = false;
+        m_syncPassword = QInputDialog::getText(this, "Sync Password", "Enter your sync password:",
+                                               QLineEdit::Password, QString(), &ok);
+        if (!ok || m_syncPassword.isEmpty()) {
+            QDialog::reject();
+            return;
+        }
     }
-    return true;
+
+    if (m_mode == Mode::Restore) startRestore();
+    else startPush(m_mode == Mode::Rekey);
 }
 
-void SyncDialog::setBusy(bool busy) {
-    m_syncButton->setEnabled(!busy);
-    m_restoreButton->setEnabled(!busy);
-    m_progress->setVisible(busy);
-}
-
-// Worker threads report through this; the call is queued onto the UI thread.
 void SyncDialog::setStatus(const QString &text) {
+    // A trail in debug.log, so a sync that dies shows how far it got. Never secrets.
+    qInfo("Sync: %s", qPrintable(text));
+    // Worker threads report through this; the call is queued onto the UI thread.
     QMetaObject::invokeMethod(m_status, "setText", Qt::QueuedConnection, Q_ARG(QString, text));
 }
 
 void SyncDialog::startWork(const std::function<void()> &work, const std::function<void()> &done) {
-    setBusy(true);
+    m_close->setEnabled(false);
+    m_progress->show();
     m_error.clear();
     m_thread = QThread::create([this, work] {
         try {
@@ -217,67 +94,87 @@ void SyncDialog::startWork(const std::function<void()> &work, const std::functio
     connect(m_thread, &QThread::finished, this, [this, done] {
         m_thread->deleteLater();
         m_thread = nullptr;
-        setBusy(false);
+        m_close->setEnabled(true);
+        m_progress->hide();
         if (m_error.isEmpty()) done();
-        else showFailure();
+        else finishWithError(m_error);
     });
     m_thread->start();
 }
 
-void SyncDialog::showFailure() {
-    m_status->setText("Error: " + m_error);
-    QMessageBox::critical(this, "Cloud Sync Failed", m_error);
+void SyncDialog::finishWithError(const QString &message) {
+    qWarning("Sync failed: %s", qPrintable(message));
+    m_heading->setText("Something went wrong");
+    m_status->setText(message);
+    m_progress->hide();
+    QMessageBox::critical(this, windowTitle(), message);
 }
 
 void SyncDialog::reject() {
     if (!m_thread) QDialog::reject();
 }
 
-void SyncDialog::onSync() {
-    if (readForm(&m_config, &m_syncPassword)) startPush(false);
-}
-
 void SyncDialog::startPush(bool allowKeyChange) {
     // SQLite connections stay on their own thread, so the worker gets a snapshot.
     QVector<AssetRecord> records;
+    SyncState state;
     try {
         records = m_db->getAllAssetsWithFiles();
+        state = m_db->loadSyncState();
     } catch (const std::exception &e) {
-        m_error = QString::fromUtf8(e.what());
-        showFailure();
+        finishWithError(QString::fromUtf8(e.what()));
         return;
     }
 
-    m_status->setText("Connecting…");
-    startWork([this, records, allowKeyChange] {
-        m_pushResult = Sync::push(m_config, m_syncPassword, records, allowKeyChange,
+    startWork([this, records, state, allowKeyChange] {
+        m_pushResult = Sync::push(m_config, m_syncPassword, records, state, allowKeyChange,
                                   [this](const QString &text) { setStatus(text); });
     }, [this] { finishPush(); });
 }
 
 void SyncDialog::finishPush() {
-    if (m_pushResult.keyMismatch) {
-        m_status->setText("Ready.");
+    const Sync::PushResult &result = m_pushResult;
+    if (result.keyMismatch) {
+        m_heading->setText("Sync password doesn't match");
+        m_status->setText("Nothing was uploaded.");
         const auto answer = QMessageBox::warning(
             this, "Different Sync Password",
-            "The sync password does not match the data already in the cloud.\n\n"
-            "If you mistyped it, choose No. If you are changing the password, choose Yes: "
-            "everything on this PC is uploaded again under the new password, and the Android "
-            "app will need the new one.",
+            "This sync password does not match the data already in your online copy.\n\n"
+            "If you mistyped it, choose No and try again. Choose Yes only if you have lost "
+            "the old one: everything on this PC is uploaded again under this password, and "
+            "the Android app will need it too.",
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (answer == QMessageBox::Yes) startPush(true);
         return;
     }
 
-    QString message = QString("Sync complete.\nAssets: %1  |  Files: %2")
-                          .arg(m_pushResult.assets).arg(m_pushResult.files);
-    if (!m_pushResult.errors.isEmpty()) {
-        message += QString("\nErrors (%1): %2").arg(m_pushResult.errors.size())
-                       .arg(m_pushResult.errors.mid(0, 3).join("; "));
+    try {
+        m_db->saveSyncState(result.state);
+    } catch (const std::exception &e) {
+        finishWithError(QString("Synced, but could not record it: %1").arg(e.what()));
+        return;
+    }
+
+    m_heading->setText("Sync complete");
+    QString message;
+    if (result.assets + result.files == 0) {
+        message = QString("Everything was already up to date (%1 items, %2 files).")
+                      .arg(result.unchangedAssets).arg(result.unchangedFiles);
+    } else {
+        message = QString("Uploaded %1 changed item%2 and %3 file%4. %5 item%6 and %7 file%8 "
+                          "were already up to date.")
+                      .arg(result.assets).arg(result.assets == 1 ? "" : "s")
+                      .arg(result.files).arg(result.files == 1 ? "" : "s")
+                      .arg(result.unchangedAssets).arg(result.unchangedAssets == 1 ? "" : "s")
+                      .arg(result.unchangedFiles).arg(result.unchangedFiles == 1 ? "" : "s");
+    }
+    if (!result.errors.isEmpty()) {
+        message += QString("\n\nProblems (%1): %2").arg(result.errors.size())
+                       .arg(result.errors.mid(0, 3).join("; "));
     }
     m_status->setText(message);
 
-    if (!m_pushResult.cloudOnly.isEmpty()) offerCloudDeletion();
+    if (!result.cloudOnly.isEmpty()) offerCloudDeletion();
 }
 
 // Asking here, rather than deleting whatever is missing locally, is what keeps a
@@ -306,20 +203,21 @@ void SyncDialog::offerCloudDeletion() {
         Sync::deleteFromCloud(m_config, m_syncPassword, ids,
                               [this](const QString &text) { setStatus(text); });
     }, [this, summary, ids] {
-        m_status->setText(QString("%1\nDeleted from the cloud: %2").arg(summary).arg(ids.size()));
+        m_status->setText(QString("%1\n\nDeleted from the cloud: %2").arg(summary).arg(ids.size()));
     });
 }
 
-void SyncDialog::onRestore() {
-    if (!readForm(&m_config, &m_syncPassword)) return;
+void SyncDialog::startRestore() {
     const auto answer = QMessageBox::warning(
         this, "Restore from Cloud",
-        "This replaces all data on this PC with the cloud copy.\n"
+        "This replaces all data on this PC with your online copy.\n"
         "Your existing data is moved to a timestamped folder first.\n\nContinue?",
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-    if (answer != QMessageBox::Yes) return;
+    if (answer != QMessageBox::Yes) {
+        QDialog::reject();
+        return;
+    }
 
-    m_status->setText("Connecting…");
     startWork([this] {
         m_restoreResult = Sync::downloadToStaging(m_config, m_syncPassword,
             [this](const QString &text) { setStatus(text); });
@@ -337,23 +235,23 @@ void SyncDialog::finishRestore() {
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (answer != QMessageBox::Yes) {
             QDir(result.stagingDir).removeRecursively();
-            m_status->setText("Restore cancelled. Nothing was changed.");
+            m_heading->setText("Restore cancelled");
+            m_status->setText("Nothing was changed.");
             return;
         }
     }
 
     try {
         const QString aside = Backup::commitRestore(result.stagingDir, *m_db);
-        m_status->setText(QString("Restored %1 assets and %2 files.").arg(result.assets)
-                              .arg(result.files));
+        m_heading->setText("Restore complete");
+        QString message = QString("Restored %1 items and %2 files.").arg(result.assets)
+                              .arg(result.files);
+        if (!aside.isEmpty())
+            message += QString("\n\nYour previous data was kept in:\n%1").arg(aside);
+        m_status->setText(message);
         emit dataReplaced();
-        if (!aside.isEmpty()) {
-            QMessageBox::information(this, "Restore Complete",
-                                     QString("Your previous data was kept in:\n%1").arg(aside));
-        }
     } catch (const std::exception &e) {
         QDir(result.stagingDir).removeRecursively();
-        m_error = QString::fromUtf8(e.what());
-        showFailure();
+        finishWithError(QString::fromUtf8(e.what()));
     }
 }

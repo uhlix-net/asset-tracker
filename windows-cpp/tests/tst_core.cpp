@@ -41,6 +41,9 @@
 #include "secretstore.h"
 #include "storage.h"
 #include "sync.h"
+#include "cloudconfig.h"
+#include "cloudsetupdialog.h"
+#include "preferencesdialog.h"
 #include "syncdialog.h"
 #include "theme.h"
 #include "updatehistorydialog.h"
@@ -373,7 +376,7 @@ private slots:
             settings->setValue("firebase/sync_password", "s3cret");
             settings->setValue("firebase/api_key", "stays");
         }
-        migrateStoredPasswords();
+        CloudConfig::migrateStoredPasswords();
         const auto settings = Config::openSettings();
         QVERIFY(!settings->contains("firebase/password"));
         QVERIFY(!settings->contains("firebase/sync_password"));
@@ -384,8 +387,199 @@ private slots:
                  QStringLiteral("s3cret"));
 
         settings->setValue("firebase/password", "");     // Empty values just go.
-        migrateStoredPasswords();
+        CloudConfig::migrateStoredPasswords();
         QVERIFY(!Config::openSettings()->contains("firebase/password"));
+    }
+
+    void cloudSettingsRoundTrip() {
+        useRoot(false);
+        QVERIFY(!CloudConfig::isLocked());
+        QVERIFY(!CloudConfig::hasAccount());
+        CloudConfig::saveProject({"key", "project", "bucket"});
+        CloudConfig::saveAccount("me@example.com", "account pass");
+        CloudConfig::saveSyncPassword("sync secret", true);
+        QCOMPARE(CloudConfig::project().projectId, QStringLiteral("project"));
+        QVERIFY(CloudConfig::hasAccount());
+        QCOMPARE(CloudConfig::password(), QStringLiteral("account pass"));
+        QCOMPARE(CloudConfig::syncPassword(), QStringLiteral("sync secret"));
+
+        // Nothing secret is stored in the clear.
+        QFile ini(m_root->filePath("settings.ini"));
+        QVERIFY(ini.open(QIODevice::ReadOnly));
+        const QByteArray raw = ini.readAll();
+        QVERIFY(!raw.contains("account pass"));
+        QVERIFY(!raw.contains("sync secret"));
+        ini.close();
+
+        CloudConfig::saveSyncPassword("sync secret", false);
+        QVERIFY(CloudConfig::syncPassword().isEmpty());
+        CloudConfig::signOut();
+        QVERIFY(!CloudConfig::hasAccount());
+        QCOMPARE(CloudConfig::project().projectId, QStringLiteral("project"));
+    }
+
+    void syncStateRoundTrip() {
+        useRoot(false);
+        Database db(Config::dbPath());
+        QVERIFY(db.loadSyncState().fingerprints.isEmpty());
+        SyncState state;
+        state.target = "t";
+        state.fingerprints.insert("asset/00001", "abc");
+        state.fingerprints.insert("manifest", "def");
+        db.saveSyncState(state);
+        const SyncState loaded = db.loadSyncState();
+        QCOMPARE(loaded.target, QStringLiteral("t"));
+        QCOMPARE(loaded.fingerprints, state.fingerprints);
+        db.saveSyncState(SyncState());
+        QVERIFY(db.loadSyncState().target.isEmpty());
+    }
+
+    void syncSendsOnlyChanges() {
+        if (qEnvironmentVariableIsEmpty("ASSET_TRACKER_MOCK")) QSKIP("mock not running");
+        mockCall("POST", "/__reset");
+        useRoot(true);
+        const FirebaseConfig config = mockConfig();
+        const QString password = m_expected.value("sync_password").toString();
+        const auto progress = &TestCore::noProgress;
+
+        Database db(Config::dbPath());
+        QVector<AssetRecord> records = db.getAllAssetsWithFiles();
+
+        Sync::PushResult first = Sync::push(config, password, records, SyncState(), false, progress);
+        QCOMPARE(first.assets, 3);
+        QCOMPARE(first.files, 8);
+
+        // Nothing changed: nothing is sent.
+        Sync::PushResult second = Sync::push(config, password, records, first.state, false, progress);
+        QCOMPARE(second.assets, 0);
+        QCOMPARE(second.files, 0);
+        QCOMPARE(second.unchangedAssets, 3);
+        QCOMPARE(second.unchangedFiles, 8);
+
+        // An edited item sends that record only.
+        records[1].asset.notes = "changed";
+        Sync::PushResult third = Sync::push(config, password, records, second.state, false, progress);
+        QCOMPARE(third.assets, 1);
+        QCOMPARE(third.files, 0);
+
+        // A new photo sends that file only.
+        const Asset &tv = records[0].asset;
+        const QString source = m_root->filePath("new.jpg");
+        QVERIFY(QFile::copy(fixture("source/front.jpg"), source));
+        for (const AssetFile &file : Storage::importFiles(tv, {source}, "image")) {
+            db.insertAssetFile(file);
+            records[0].files.append(file);
+        }
+        Sync::PushResult fourth = Sync::push(config, password, records, third.state, false, progress);
+        QCOMPARE(fourth.assets, 0);
+        QCOMPARE(fourth.files, 1);
+
+        // Something missing from the cloud is sent again even though state says it was sent.
+        FirebaseClient client(config);
+        client.authenticate();
+        client.deleteObject(QString("files/%1/%2").arg(tv.id, records[0].files.first().storedName));
+        Sync::PushResult fifth = Sync::push(config, password, records, fourth.state, false, progress);
+        QCOMPARE(fifth.files, 1);
+        QCOMPARE(fifth.assets, 0);
+
+        // State for another account or key is ignored: everything goes again.
+        SyncState foreign = fifth.state;
+        foreign.target = "someone else";
+        Sync::PushResult sixth = Sync::push(config, password, records, foreign, false, progress);
+        QCOMPARE(sixth.assets, 3);
+        QCOMPARE(sixth.files, 9);
+
+        // A restore records what it downloaded, so the next sync sends nothing.
+        useRoot(false);
+        Sync::RestoreResult restored = Sync::downloadToStaging(config, password, progress);
+        Database fresh(Config::dbPath());
+        Backup::commitRestore(restored.stagingDir, fresh);
+        Sync::PushResult afterRestore = Sync::push(config, password, fresh.getAllAssetsWithFiles(),
+                                                   fresh.loadSyncState(), false, progress);
+        QCOMPARE(afterRestore.assets, 0);
+        QCOMPARE(afterRestore.files, 0);
+    }
+
+    void accountLifecycle() {
+        if (qEnvironmentVariableIsEmpty("ASSET_TRACKER_MOCK")) QSKIP("mock not running");
+        mockCall("POST", "/__reset");
+        useRoot(true);
+        const auto progress = &TestCore::noProgress;
+        const QString syncPassword = "new user sync pw";
+
+        FirebaseConfig config = mockConfig();
+        config.email = "new@example.com";
+        config.password = "first-pass";
+
+        // Creating an account signs in; a second one with the same email is refused.
+        Sync::createAccount(config);
+        Sync::signIn(config);
+        try {
+            Sync::createAccount(config);
+            QFAIL("duplicate email accepted");
+        } catch (const std::exception &e) {
+            QVERIFY(QString(e.what()).contains("already exists"));
+        }
+        FirebaseConfig weak = config;
+        weak.email = "weak@example.com";
+        weak.password = "123";
+        try {
+            Sync::createAccount(weak);
+            QFAIL("weak password accepted");
+        } catch (const std::exception &e) {
+            QVERIFY(QString(e.what()).contains("at least 6 characters"));
+        }
+
+        // Password reset is requested without signing in.
+        Sync::sendPasswordReset(config, "new@example.com");
+        QVERIFY(mockCall("GET", "/__dump").contains("new@example.com"));
+
+        // A new account has nothing online, so any sync password is accepted.
+        QCOMPARE(Sync::checkSyncPassword(config, syncPassword), Sync::KeyCheck::NoCloudData);
+
+        Database db(Config::dbPath());
+        const QVector<AssetRecord> records = db.getAllAssetsWithFiles();
+        QCOMPARE(Sync::push(config, syncPassword, records, SyncState(), false, progress).files, 8);
+        QCOMPARE(Sync::checkSyncPassword(config, syncPassword), Sync::KeyCheck::Matches);
+        QCOMPARE(Sync::checkSyncPassword(config, "wrong one"), Sync::KeyCheck::DoesNotMatch);
+
+        // Another user's data is untouched by anything this user does.
+        const QString reference = m_expected.value("sync_password").toString();
+        Sync::push(mockConfig(), reference, records, SyncState(), false, progress);
+
+        Sync::changeAccountPassword(config, "second-pass");
+        QVERIFY_THROWS_EXCEPTION(std::runtime_error, Sync::signIn(config));
+        config.password = "second-pass";
+        Sync::signIn(config);
+
+        // Deleting online data empties this user's space but keeps the account.
+        Sync::deleteAllCloudData(config, progress);
+        {
+            FirebaseClient client(config);
+            client.authenticate();
+            QVERIFY(client.listDocuments("assets").isEmpty());
+            QVERIFY(client.listObjects(QString()).isEmpty());
+            QVERIFY(client.getDocument("metadata", "manifest").isEmpty());
+        }
+        QCOMPARE(Sync::checkSyncPassword(config, syncPassword), Sync::KeyCheck::NoCloudData);
+
+        // Deleting the account removes the login too.
+        Sync::push(config, syncPassword, records, SyncState(), false, progress);
+        Sync::deleteAccount(config, progress);
+        try {
+            Sync::signIn(config);
+            QFAIL("deleted account still signs in");
+        } catch (const std::exception &e) {
+            QVERIFY(QString(e.what()).contains("not correct"));
+        }
+        Sync::createAccount(config);   // The email is free again, with nothing behind it.
+        QCOMPARE(Sync::checkSyncPassword(config, syncPassword), Sync::KeyCheck::NoCloudData);
+
+        // The reference user still has everything.
+        FirebaseClient other(mockConfig());
+        other.authenticate();
+        QCOMPARE(other.listDocuments("assets").size(), 3);
+        QCOMPARE(other.listObjects("files/").size(), 8);
     }
 
     void syncPushDeleteAndRestore() {
@@ -402,20 +596,20 @@ private slots:
             records = db.getAllAssetsWithFiles();
         }
 
-        Sync::PushResult pushed = Sync::push(config, password, records, false, progress);
+        Sync::PushResult pushed = Sync::push(config, password, records, SyncState(), false, progress);
         QVERIFY2(pushed.errors.isEmpty(), qPrintable(pushed.errors.join("; ")));
         QCOMPARE(pushed.assets, 3);
         QCOMPARE(pushed.files, 8);
         QVERIFY(pushed.cloudOnly.isEmpty());
 
         // A wrong password stops before anything is written.
-        const Sync::PushResult wrong = Sync::push(config, "not it", records, false, progress);
+        const Sync::PushResult wrong = Sync::push(config, "not it", records, SyncState(), false, progress);
         QVERIFY(wrong.keyMismatch);
         QCOMPARE(wrong.assets, 0);
 
         // An empty PC must never overwrite a populated cloud.
         QVERIFY_THROWS_EXCEPTION(std::runtime_error,
-                                 Sync::push(config, password, {}, false, progress));
+                                 Sync::push(config, password, {}, SyncState(), false, progress));
 
         // Drop a photo and an asset locally: the photo goes at once, the asset is
         // only reported, and its manifest entry survives.
@@ -424,7 +618,7 @@ private slots:
         fewer[0].files.removeLast();
         const int removedFiles = records[0].files.size() - fewer[0].files.size();
         QCOMPARE(removedFiles, 1);
-        pushed = Sync::push(config, password, fewer, false, progress);
+        pushed = Sync::push(config, password, fewer, SyncState(), false, progress);
         QCOMPARE(pushed.cloudOnly.size(), 1);
         QCOMPARE(pushed.cloudOnly.first().id, dropped.asset.id);
         QCOMPARE(pushed.cloudOnly.first().name, dropped.asset.name);
@@ -466,16 +660,16 @@ private slots:
         FirebaseConfig bad = config;
         bad.password = "nope";
         try {
-            Sync::push(bad, password, records, false, progress);
+            Sync::push(bad, password, records, SyncState(), false, progress);
             QFAIL("authentication should have failed");
         } catch (const std::exception &e) {
-            QVERIFY(QString(e.what()).contains("INVALID_LOGIN_CREDENTIALS"));
+            QVERIFY(QString(e.what()).contains("email or password is not correct"));
             QVERIFY(!QString(e.what()).contains(config.apiKey));
         }
 
         // Leave a full push in place for verify_outputs.py.
         useRoot(true);
-        Sync::push(config, password, records, false, progress);
+        Sync::push(config, password, records, SyncState(), false, progress);
     }
 
     void restoreWithWrongSyncPasswordChangesNothing() {
@@ -616,8 +810,12 @@ private slots:
         capture(add, "dialog_add");
         AssetForm edit(&db, tv, &window);
         capture(edit, "dialog_edit");
-        SyncDialog sync(&db, &window);
-        capture(sync, "dialog_sync");
+        CloudSetupDialog setup(CloudSetupDialog::StartAt::Welcome, &window);
+        capture(setup, "dialog_setup");
+        CloudSetupDialog setupAccount(CloudSetupDialog::StartAt::Account, &window);
+        capture(setupAccount, "dialog_setup_service");
+        PreferencesDialog preferences(&db, &window);
+        capture(preferences, "dialog_preferences");
         AboutDialog about(&window);
         capture(about, "dialog_about");
         HelpDialog help(&window);

@@ -42,6 +42,10 @@ public:
     void deleteAsset(const QString &assetId);
     void deleteAssetFile(qint64 fileId);
 
+    // Online sync bookkeeping (see SyncState). Not part of the inventory itself.
+    SyncState loadSyncState();
+    void saveSyncState(const SyncState &state);
+
 private:
     void createSchema();
     void migrate();

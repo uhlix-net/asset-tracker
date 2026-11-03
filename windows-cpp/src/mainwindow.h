@@ -34,6 +34,11 @@ private:
     void onBackup();
     void onRestore();
     void onSync();
+    void onRestoreFromCloud();
+    void onPreferences();
+    void runCloud(int mode);
+    bool ensureCloudSetUp();
+    void firstRunSetup();
     void onExportFiles();
     void onExportCsv();
     void onPrint();

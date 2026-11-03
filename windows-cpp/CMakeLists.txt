@@ -1,10 +1,21 @@
 cmake_minimum_required(VERSION 3.20)
-project(asset_tracker VERSION 0.1.0)
+project(asset_tracker VERSION 0.2.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(ASSET_TRACKER_TESTS "Build the core test executable" OFF)
+
+# The Firebase project every user's account lives in. Empty: users are asked at first
+# start. Set and LOCKED: built in and hidden from users, for production builds.
+set(ASSET_TRACKER_FIREBASE_API_KEY "" CACHE STRING "Firebase web API key to build in")
+set(ASSET_TRACKER_FIREBASE_PROJECT_ID "" CACHE STRING "Firebase project ID to build in")
+set(ASSET_TRACKER_FIREBASE_BUCKET "" CACHE STRING "Firebase storage bucket to build in")
+option(ASSET_TRACKER_FIREBASE_LOCKED "Hide the built-in Firebase project from users" OFF)
+if(ASSET_TRACKER_FIREBASE_LOCKED AND (ASSET_TRACKER_FIREBASE_API_KEY STREQUAL ""
+        OR ASSET_TRACKER_FIREBASE_PROJECT_ID STREQUAL "" OR ASSET_TRACKER_FIREBASE_BUCKET STREQUAL ""))
+    message(FATAL_ERROR "ASSET_TRACKER_FIREBASE_LOCKED needs the API key, project ID and bucket set.")
+endif()
 
 add_compile_definitions(NOMINMAX ASSET_TRACKER_VERSION="${PROJECT_VERSION}")
 
@@ -25,6 +36,8 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version.nsh"
 # Everything except main.cpp, so the tests link the same code the app runs.
 qt_add_library(asset_core STATIC
     src/backup.cpp        src/backup.h
+    src/cloudconfig.cpp   src/cloudconfig.h
+    src/cloudsetupdialog.cpp src/cloudsetupdialog.h
     src/config.cpp        src/config.h
     src/crypto.cpp        src/crypto.h
     src/csvexport.cpp     src/csvexport.h
@@ -44,6 +57,7 @@ qt_add_library(asset_core STATIC
     src/imageviewer.cpp   src/imageviewer.h
     src/insurerinfodialog.cpp src/insurerinfodialog.h
     src/mainwindow.cpp    src/mainwindow.h
+    src/preferencesdialog.cpp src/preferencesdialog.h
     src/previewpanel.cpp  src/previewpanel.h
     src/syncdialog.cpp    src/syncdialog.h
     src/theme.cpp         src/theme.h
@@ -53,6 +67,13 @@ qt_add_library(asset_core STATIC
 )
 
 target_include_directories(asset_core PUBLIC src)
+
+target_compile_definitions(asset_core PRIVATE
+    ASSET_TRACKER_FIREBASE_API_KEY="${ASSET_TRACKER_FIREBASE_API_KEY}"
+    ASSET_TRACKER_FIREBASE_PROJECT_ID="${ASSET_TRACKER_FIREBASE_PROJECT_ID}"
+    ASSET_TRACKER_FIREBASE_BUCKET="${ASSET_TRACKER_FIREBASE_BUCKET}"
+    ASSET_TRACKER_FIREBASE_LOCKED=$<BOOL:${ASSET_TRACKER_FIREBASE_LOCKED}>
+)
 
 target_link_libraries(asset_core PUBLIC
     Qt6::Core
@@ -75,7 +96,8 @@ qt_add_executable(asset_tracker WIN32
     installer/app.rc
     ${APP_RESOURCES}
 )
-target_link_libraries(asset_tracker PRIVATE asset_core)
+# dbghelp: MiniDumpWriteDump, for crash dumps beside debug.log.
+target_link_libraries(asset_tracker PRIVATE asset_core dbghelp)
 
 # After each build: deploy Qt runtime DLLs and copy vcpkg DLLs next to the exe
 # so the output directory is always self-contained and installer-ready.
@@ -89,6 +111,24 @@ add_custom_command(TARGET asset_tracker POST_BUILD
     COMMENT "Deploying Qt runtime DLLs..."
     VERBATIM
 )
+# The Visual C++ runtime goes beside the exe. A build from a recent MSVC needs a
+# runtime at least as new, and Windows 10 PCs often have an older one in System32:
+# with msvcp140.dll 14.28 the app crashed (access violation in msvcp140) the first
+# time it locked a mutex, which was at the start of a sync. Windows loads DLLs from
+# the app folder first, so shipping these makes the installed copy self-sufficient.
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+set(CMAKE_INSTALL_UCRT_LIBRARIES FALSE)
+include(InstallRequiredSystemLibraries)
+if(NOT CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+    message(FATAL_ERROR "Could not find the Visual C++ runtime DLLs to ship with the app.")
+endif()
+message(STATUS "Shipping Visual C++ runtime: ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}")
+add_custom_command(TARGET asset_tracker POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} "$<TARGET_FILE_DIR:asset_tracker>"
+    COMMENT "Copying the Visual C++ runtime..."
+)
+
 # windeployqt only looks in the main Qt kit; this covers a separately installed add-on.
 add_custom_command(TARGET asset_tracker POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QEventLoop>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -31,11 +32,11 @@ FirebaseClient::FirebaseClient(const FirebaseConfig &config)
     : m_config(config)
 {}
 
-QByteArray FirebaseClient::authUrl() const {
+QByteArray FirebaseClient::authUrl(const char *operation) const {
     const QByteArray base = m_config.endpointOverride.isEmpty()
-        ? QByteArray("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword")
-        : m_config.endpointOverride.toUtf8() + "/auth";
-    return base + "?key=" + encoded(m_config.apiKey);
+        ? QByteArray("https://identitytoolkit.googleapis.com/v1/accounts:")
+        : m_config.endpointOverride.toUtf8() + "/auth/";
+    return base + operation + "?key=" + encoded(m_config.apiKey);
 }
 
 QByteArray FirebaseClient::documentUrl(const QString &collection, const QString &id) const {
@@ -92,21 +93,88 @@ FirebaseClient::Reply FirebaseClient::send(const QByteArray &verb, const QByteAr
     return result;
 }
 
+// Firebase Auth reports problems as codes. These are the ones a user can act on.
+QString FirebaseClient::authMessage(const QString &code) {
+    const QString key = code.section(' ', 0, 0).section(':', 0, 0).trimmed();
+    static const QHash<QString, QString> messages = {
+        {"INVALID_LOGIN_CREDENTIALS", "The email or password is not correct."},
+        {"INVALID_PASSWORD", "The email or password is not correct."},
+        {"EMAIL_NOT_FOUND", "There is no account with that email address."},
+        {"INVALID_EMAIL", "That doesn't look like a valid email address."},
+        {"MISSING_PASSWORD", "Enter a password."},
+        {"EMAIL_EXISTS", "An account with that email address already exists. Sign in instead."},
+        {"WEAK_PASSWORD", "Choose a longer password: at least 6 characters."},
+        {"USER_DISABLED", "This account has been turned off. Contact support."},
+        {"TOO_MANY_ATTEMPTS_TRY_LATER", "Too many attempts. Wait a few minutes and try again."},
+        {"OPERATION_NOT_ALLOWED",
+         "Creating accounts is turned off for this Firebase project. Contact support."},
+        {"ADMIN_ONLY_OPERATION",
+         "Creating accounts is turned off for this Firebase project. Contact support."},
+        {"CREDENTIAL_TOO_OLD_LOGIN_AGAIN", "Please sign in again, then retry."},
+        {"API", "The Firebase API key is not valid. Check the project settings."},
+    };
+    const auto it = messages.constFind(key == "API" || code.startsWith("API key") ? "API" : key);
+    return it != messages.constEnd() ? *it : QString("Firebase account error: %1").arg(code);
+}
+
+QJsonObject FirebaseClient::callAuth(const char *operation, const QJsonObject &body) {
+    const Reply reply = send("POST", authUrl(operation),
+                             QJsonDocument(body).toJson(QJsonDocument::Compact),
+                             "application/json", kShortTimeoutMs);
+    if (reply.status != 200) fail(authMessage(detail(reply)));
+    return QJsonDocument::fromJson(reply.body).object();
+}
+
+void FirebaseClient::takeSession(const QJsonObject &reply) {
+    m_token = reply.value("idToken").toString();
+    m_uid = reply.value("localId").toString();
+}
+
 void FirebaseClient::authenticate() {
-    const QByteArray body = QJsonDocument(QJsonObject{
+    m_token.clear();
+    takeSession(callAuth("signInWithPassword", QJsonObject{
         {"email", m_config.email},
         {"password", m_config.password},
         {"returnSecureToken", true},
-    }).toJson(QJsonDocument::Compact);
+    }));
+}
 
+void FirebaseClient::createAccount() {
     m_token.clear();
-    const Reply reply = send("POST", authUrl(), body, "application/json", kShortTimeoutMs);
-    if (reply.status != 200)
-        fail(QString("Firebase authentication failed: %1").arg(detail(reply)));
+    takeSession(callAuth("signUp", QJsonObject{
+        {"email", m_config.email},
+        {"password", m_config.password},
+        {"returnSecureToken", true},
+    }));
+}
 
-    const QJsonObject data = QJsonDocument::fromJson(reply.body).object();
-    m_token = data.value("idToken").toString();
-    m_uid = data.value("localId").toString();
+void FirebaseClient::sendPasswordReset(const QString &email) {
+    const QString token = m_token;
+    m_token.clear();   // The reset request is anonymous.
+    try {
+        callAuth("sendOobCode", QJsonObject{{"requestType", "PASSWORD_RESET"}, {"email", email}});
+    } catch (...) {
+        m_token = token;
+        throw;
+    }
+    m_token = token;
+}
+
+void FirebaseClient::changePassword(const QString &newPassword) {
+    if (m_token.isEmpty()) fail("Not signed in.");
+    takeSession(callAuth("update", QJsonObject{
+        {"idToken", m_token},
+        {"password", newPassword},
+        {"returnSecureToken", true},
+    }));
+    m_config.password = newPassword;
+}
+
+void FirebaseClient::deleteAccount() {
+    if (m_token.isEmpty()) fail("Not signed in.");
+    callAuth("delete", QJsonObject{{"idToken", m_token}});
+    m_token.clear();
+    m_uid.clear();
 }
 
 QVector<FirebaseClient::Document> FirebaseClient::listDocuments(const QString &collection) {
