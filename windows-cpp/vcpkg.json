@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "asset-tracker-cpp",
+  "version": "0.1.0",
+  "builtin-baseline": "46c9f8d8398360278222d335c28bceb776ebb61f",
+  "dependencies": [
+    "openssl",
+    {
+      "name": "libzip",
+      "default-features": false,
+      "features": ["openssl"]
+    }
+  ]
+}
