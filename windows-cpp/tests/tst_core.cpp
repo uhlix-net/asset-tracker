@@ -1,5 +1,4 @@
-// Tests for the data layer and for compatibility with what the Python edition
-// wrote. Fixtures come from make_fixtures.py; run everything with run_tests.py.
+// Tests for the data layer and for compatibility with what older versions wrote. Fixtures come from make_fixtures.py; run everything with run_tests.py.
 //
 //   ASSET_TRACKER_FIXTURES  fixture directory
 //   ASSET_TRACKER_TEST_OUT  where this writes files for verify_outputs.py
@@ -43,6 +42,7 @@
 #include "storage.h"
 #include "sync.h"
 #include "syncdialog.h"
+#include "theme.h"
 #include "updatehistorydialog.h"
 
 namespace {
@@ -86,7 +86,7 @@ class TestCore : public QObject {
 
     QString fixture(const QString &name) const { return m_fixtures + "/" + name; }
 
-    // A private data tree: empty, or a copy of the Python edition's data.
+    // A private data tree: empty, or a copy of data in the older formats.
     void useRoot(bool withLegacyData) {
         m_root = std::make_unique<QTemporaryDir>();
         Config::setTestRoot(m_root->path());
@@ -130,7 +130,7 @@ private slots:
         QVERIFY(!m_expected.isEmpty());
     }
 
-    void slugsMatchPython() {
+    void slugsMatchExistingFolders() {
         const QJsonObject slugs = m_expected.value("slugs").toObject();
         for (auto it = slugs.begin(); it != slugs.end(); ++it)
             QCOMPARE(slugify(it.key()), it.value().toString());
@@ -142,7 +142,7 @@ private slots:
         QCOMPARE(moneyDisplay(std::nullopt), QStringLiteral("—"));
     }
 
-    void readsPythonDatabaseAndFiles() {
+    void readsExistingDatabaseAndFiles() {
         useRoot(true);
         Database db(Config::dbPath());
 
@@ -245,7 +245,7 @@ private slots:
         QCOMPARE(db.getAllAssets().size(), 0);
     }
 
-    void restoresPythonBackup() {
+    void restoresFormat1Backup() {
         useRoot(false);
         const QString staging = Backup::prepareRestore(
             m_expected.value("backup_password").toString(), fixture("legacy_backup.zip"));
@@ -332,13 +332,13 @@ private slots:
         QVERIFY(!QFile::exists(dest + ".part"));
     }
 
-    void cryptoMatchesPython() {
+    void cryptoMatchesAndroidScheme() {
         const QString password = m_expected.value("sync_password").toString();
         const QByteArray key = fromHex(m_expected.value("sync_key_hex").toString());
         QCOMPARE(Crypto::deriveKey(password), key);
 
         const QJsonObject blob = Crypto::decryptJson(m_expected.value("sync_blob").toString(), key);
-        QCOMPARE(blob.value("name").toString(), QStringLiteral("Python blob ✓"));
+        QCOMPARE(blob.value("name").toString(), QStringLiteral("Reference blob ✓"));
         QCOMPARE(Crypto::decrypt(QByteArray::fromBase64(
                      m_expected.value("file_blob").toString().toLatin1()), key),
                  QByteArray("file bytes"));
@@ -559,9 +559,7 @@ private slots:
         useRoot(true);
         Database db(Config::dbPath());
 
-        // Match what main() sets up.
-        QApplication::setStyle("Fusion");
-        QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Light);
+        Theme::apply(*qApp);
 
         MainWindow window(&db);
         window.show();
@@ -607,14 +605,27 @@ private slots:
                  scroll->widget()->height() - scroll->viewport()->height());
         window.grab().save(m_out + "/main_window.png");
 
+        // Each dialog is shown and captured, so its look can be checked by eye.
+        const auto capture = [this](QDialog &dialog, const QString &name) {
+            dialog.show();
+            QTest::qWait(30);
+            dialog.grab().save(m_out + "/" + name + ".png");
+        };
         const auto tv = db.getAssetById("00001");
-        AssetForm(&db, std::nullopt, &window).show();
-        AssetForm(&db, tv, &window).show();
-        SyncDialog(&db, &window).show();
-        AboutDialog(&window).show();
-        HelpDialog(&window).show();
-        UpdateHistoryDialog(&window).show();
-        InsurerInfoDialog(&window).show();
+        AssetForm add(&db, std::nullopt, &window);
+        capture(add, "dialog_add");
+        AssetForm edit(&db, tv, &window);
+        capture(edit, "dialog_edit");
+        SyncDialog sync(&db, &window);
+        capture(sync, "dialog_sync");
+        AboutDialog about(&window);
+        capture(about, "dialog_about");
+        HelpDialog help(&window);
+        capture(help, "dialog_help");
+        UpdateHistoryDialog history(&window);
+        capture(history, "dialog_history");
+        InsurerInfoDialog insurer(&window);
+        capture(insurer, "dialog_insurer");
         window.close();
     }
 };

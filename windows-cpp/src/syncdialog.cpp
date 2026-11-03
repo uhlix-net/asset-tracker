@@ -4,6 +4,7 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -17,6 +18,7 @@
 #include "config.h"
 #include "database.h"
 #include "secretstore.h"
+#include "theme.h"
 
 namespace {
 
@@ -65,12 +67,16 @@ SyncDialog::SyncDialog(Database *db, QWidget *parent)
 
 void SyncDialog::buildUi() {
     auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(20, 16, 20, 16);
+    layout->setSpacing(10);
     auto *tabs = new QTabWidget;
     layout->addWidget(tabs);
 
     auto *configTab = new QWidget;
     auto *configForm = new QFormLayout(configTab);
-    configForm->setLabelAlignment(Qt::AlignRight);
+    configForm->setContentsMargins(14, 14, 14, 14);
+    configForm->setVerticalSpacing(8);
+    configForm->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     m_apiKey = new QLineEdit;
     m_projectId = new QLineEdit;
@@ -81,40 +87,42 @@ void SyncDialog::buildUi() {
     m_firebasePassword = new QLineEdit;
     m_firebasePassword->setEchoMode(QLineEdit::Password);
 
-    configForm->addRow("Firebase API Key:", m_apiKey);
-    configForm->addRow("Project ID:", m_projectId);
-    configForm->addRow("Storage Bucket:", m_bucket);
-    configForm->addRow("Firebase Email:", m_email);
-    configForm->addRow("Firebase Password:", m_firebasePassword);
+    configForm->addRow("API key", m_apiKey);
+    configForm->addRow("Project ID", m_projectId);
+    configForm->addRow("Storage bucket", m_bucket);
+    configForm->addRow("Email", m_email);
+    configForm->addRow("Password", m_firebasePassword);
 
-    auto *note = new QLabel("Enter the Firebase credentials for your project.\n"
-                            "Passwords are stored encrypted for your Windows account.");
-    note->setStyleSheet("color: #555; font-size: 10px;");
+    auto *note = new QLabel("Your Firebase project's details. Passwords are stored "
+                            "encrypted for your Windows account.");
+    note->setObjectName("hint");
     note->setWordWrap(true);
     configForm->addRow(note);
-    tabs->addTab(configTab, "Firebase Config");
+    tabs->addTab(configTab, "Firebase");
 
     auto *passwordTab = new QWidget;
     auto *passwordForm = new QFormLayout(passwordTab);
-    passwordForm->setLabelAlignment(Qt::AlignRight);
+    passwordForm->setContentsMargins(14, 14, 14, 14);
+    passwordForm->setVerticalSpacing(8);
+    passwordForm->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     m_syncPasswordEdit = new QLineEdit;
     m_syncPasswordEdit->setEchoMode(QLineEdit::Password);
-    m_remember = new QCheckBox("Remember sync password (encrypted for this Windows account)");
+    m_remember = new QCheckBox("Remember on this PC (stored encrypted)");
 
-    auto *encNote = new QLabel("🔒  All data is AES-256-GCM encrypted with this password "
-                               "before being sent to Firebase.\n"
-                               "The same password must be entered in the Android app.\n"
-                               "Google cannot read your files.");
-    encNote->setStyleSheet("color: #1B2A3B; font-size: 10px;");
+    auto *encNote = new QLabel("Everything is encrypted with this password before it leaves "
+                               "your PC, so Google cannot read your files. Use the same "
+                               "password in the Android app.");
+    encNote->setObjectName("hint");
     encNote->setWordWrap(true);
 
-    passwordForm->addRow("Sync Password:", m_syncPasswordEdit);
+    passwordForm->addRow("Sync password", m_syncPasswordEdit);
     passwordForm->addRow(m_remember);
     passwordForm->addRow(encNote);
     tabs->addTab(passwordTab, "Encryption");
 
     m_status = new QLabel("Ready.");
+    m_status->setObjectName("hint");
     m_status->setWordWrap(true);
     m_progress = new QProgressBar;
     m_progress->setRange(0, 0);
@@ -123,6 +131,7 @@ void SyncDialog::buildUi() {
     layout->addWidget(m_progress);
 
     m_syncButton = new QPushButton("Sync Now");
+    Theme::markPrimary(m_syncButton);
     connect(m_syncButton, &QPushButton::clicked, this, &SyncDialog::onSync);
     m_restoreButton = new QPushButton("Restore from Cloud...");
     connect(m_restoreButton, &QPushButton::clicked, this, &SyncDialog::onRestore);
@@ -132,8 +141,11 @@ void SyncDialog::buildUi() {
     connect(buttons, &QDialogButtonBox::accepted, this, &SyncDialog::onSave);
     connect(buttons, &QDialogButtonBox::rejected, this, &SyncDialog::reject);
 
-    layout->addWidget(m_syncButton);
-    layout->addWidget(m_restoreButton);
+    auto *actions = new QHBoxLayout;
+    actions->addWidget(m_syncButton);
+    actions->addWidget(m_restoreButton);
+    actions->addStretch();
+    layout->addLayout(actions);
     layout->addWidget(buttons);
 }
 
@@ -145,7 +157,7 @@ void SyncDialog::loadSettings() {
     m_email->setText(settings->value("firebase/email").toString());
     m_firebasePassword->setText(readSecret(*settings, kPasswordKey));
 
-    // Python stored this as the string "True"; QVariant reads that as true too.
+    // Older versions stored this as the string "True"; QVariant reads that as true too.
     const bool remember = settings->value("firebase/remember_sync_password").toBool();
     m_remember->setChecked(remember);
     if (remember) m_syncPasswordEdit->setText(readSecret(*settings, kSyncPasswordKey));

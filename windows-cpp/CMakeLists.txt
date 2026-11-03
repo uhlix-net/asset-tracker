@@ -30,6 +30,7 @@ qt_add_library(asset_core STATIC
     src/csvexport.cpp     src/csvexport.h
     src/database.cpp      src/database.h
     src/firebaseclient.cpp src/firebaseclient.h
+    src/icons.cpp         src/icons.h
     src/models.cpp        src/models.h
     src/report.cpp        src/report.h
     src/secretstore.cpp   src/secretstore.h
@@ -45,6 +46,7 @@ qt_add_library(asset_core STATIC
     src/mainwindow.cpp    src/mainwindow.h
     src/previewpanel.cpp  src/previewpanel.h
     src/syncdialog.cpp    src/syncdialog.h
+    src/theme.cpp         src/theme.h
     src/toolbar.cpp       src/toolbar.h
     src/updatechecker.cpp src/updatechecker.h
     src/updatehistorydialog.cpp src/updatehistorydialog.h

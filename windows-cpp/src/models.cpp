@@ -14,7 +14,7 @@ QString slugify(const QString &text) {
     slug.remove(strip);
     slug.replace(runs, "_");
 
-    // Python's [:40] counts code points, not UTF-16 units.
+    // Folder names already on disk count 40 code points, not UTF-16 units.
     const QList<uint> points = slug.toUcs4();
     return points.size() <= 40 ? slug : QString::fromUcs4(points.constData(), 40);
 }

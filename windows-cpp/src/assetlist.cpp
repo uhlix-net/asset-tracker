@@ -7,6 +7,8 @@
 #include <QSet>
 
 #include "database.h"
+#include "icons.h"
+#include "theme.h"
 #include "storage.h"
 
 namespace {
@@ -34,31 +36,38 @@ AssetList::AssetList(Database *db, QWidget *parent)
     : QTableWidget(0, 9, parent)
     , m_db(db)
 {
-    setHorizontalHeaderLabels({"", "ID", "Name", "Category", "Purchase Date", "Purchase Price",
-                               "Current Value", "Receipt?", "Date Added"});
+    setHorizontalHeaderLabels({"", "ID", "Name", "Category", "Purchased", "Purchase Price",
+                               "Current Value", "Receipt", "Added"});
     setSelectionBehavior(QAbstractItemView::SelectRows);
     setSelectionMode(QAbstractItemView::ExtendedSelection);
     setEditTriggers(QAbstractItemView::NoEditTriggers);
     setAlternatingRowColors(true);
+    setShowGrid(false);
+    setWordWrap(false);
+    setFrameShape(QFrame::NoFrame);
     setIconSize(QSize(kThumbSize, kThumbSize));
     verticalHeader()->setVisible(false);
     verticalHeader()->setDefaultSectionSize(52);
+    horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    horizontalHeader()->setHighlightSections(false);
     setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this, &QWidget::customContextMenuRequested, this, &AssetList::showContextMenu);
 
     QHeaderView *header = horizontalHeader();
-    header->setStretchLastSection(false);
+    // Name gets a fixed share the user can drag; the last column takes what is left.
+    header->setStretchLastSection(true);
     header->setSectionResizeMode(QHeaderView::ResizeToContents);
     header->setSectionResizeMode(kThumbColumn, QHeaderView::Fixed);
-    setColumnWidth(kThumbColumn, 52);
-    header->setSectionResizeMode(2, QHeaderView::Stretch);
+    setColumnWidth(kThumbColumn, 56);
+    header->setSectionResizeMode(2, QHeaderView::Interactive);
+    setColumnWidth(2, 230);
     header->setSortIndicatorShown(true);
     header->setSortIndicator(kDateAddedColumn, Qt::DescendingOrder);
     setSortingEnabled(true);
 
-    m_emptyLabel = new QLabel("No assets yet — click  Add Asset  to get started", viewport());
+    m_emptyLabel = new QLabel("No assets yet. Click Add Asset to get started.", viewport());
+    m_emptyLabel->setObjectName("emptyState");
     m_emptyLabel->setAlignment(Qt::AlignCenter);
-    m_emptyLabel->setStyleSheet("color: #888; font-size: 14px; font-style: italic;");
     m_emptyLabel->hide();
 
     connect(this, &QTableWidget::itemSelectionChanged, this, &AssetList::onSelectionChanged);
@@ -97,12 +106,8 @@ void AssetList::populateRow(int row, const Asset &asset) {
         pixmap = Storage::thumbnail(Storage::storedPath(asset, file), kThumbSize, file.encrypted);
         break;
     }
-    if (pixmap.isNull()) {
-        thumb->setText(QStringLiteral("📷"));
-        thumb->setForeground(QColor("#bbb"));
-    } else {
-        thumb->setData(Qt::DecorationRole, pixmap);
-    }
+    if (pixmap.isNull()) pixmap = Icons::photo(QColor("#B4BDC7"), 22).pixmap(22, 22);
+    thumb->setData(Qt::DecorationRole, pixmap);
     setItem(row, kThumbColumn, thumb);
 
     const QStringList values = {
@@ -112,7 +117,7 @@ void AssetList::populateRow(int row, const Asset &asset) {
         asset.datePurchase.isEmpty() ? QStringLiteral("—") : asset.datePurchase,
         moneyDisplay(asset.valueEstimate),
         moneyDisplay(asset.currentValue),
-        asset.hasReceipt ? "Yes" : "No",
+        asset.hasReceipt ? "Yes" : "—",
         asset.dateAdded.left(10),
     };
     for (int i = 0; i < values.size(); ++i) {

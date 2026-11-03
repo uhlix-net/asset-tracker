@@ -4,7 +4,6 @@
 #include <QFile>
 #include <QIcon>
 #include <QMessageBox>
-#include <QStyleHints>
 #include <exception>
 
 #include <windows.h>
@@ -14,6 +13,7 @@
 #include "database.h"
 #include "mainwindow.h"
 #include "syncdialog.h"
+#include "theme.h"
 
 namespace {
 
@@ -53,8 +53,7 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName(Config::kAppName);
     app.setApplicationVersion(Config::kAppVersion);
-    app.setStyle("Fusion");
-    app.styleHints()->setColorScheme(Qt::ColorScheme::Light);  // The UI colours assume light.
+    Theme::apply(app);
     app.setWindowIcon(QIcon(":/app.ico"));
 
     try {

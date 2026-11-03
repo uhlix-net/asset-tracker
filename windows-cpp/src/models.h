@@ -3,8 +3,8 @@
 #include <QVector>
 #include <optional>
 
-// Replaced the Python slugify(). Asset folders are named "<id>_<slug>", so this
-// must keep producing the names existing folders already have.
+// Asset folders are named "<id>_<slug>", so this must keep producing the names
+// existing folders already have.
 QString slugify(const QString &text);
 
 // "$1,234.50", or an em dash when there is no value.

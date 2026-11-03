@@ -4,7 +4,7 @@
 #include <QStringList>
 #include <memory>
 
-// Paths and fixed lists. These must stay in step with what the Python edition
+// Paths and fixed lists. These must stay in step with what earlier versions
 // wrote: the same %APPDATA%\AssetTracker tree and the same registry key, so an
 // install upgrades in place.
 namespace Config {

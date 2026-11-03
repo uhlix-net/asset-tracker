@@ -1,8 +1,8 @@
 """Runs the C++ tests end to end on Windows.
 
-    python run_tests.py <python-repo-root> <test-exe> <work-dir>
+    python run_tests.py <test-exe> <work-dir>
 
-Needs a Python with the Python edition's requirements.txt installed. Runs on the
+Needs a Python with tests/requirements.txt installed. Runs on the
 real Windows platform: Qt's offscreen platform has no fonts, so PDFs come out with
 blocks for text. A few windows flash on screen.
 """
@@ -14,11 +14,11 @@ import sys
 import time
 
 here = pathlib.Path(__file__).parent
-repo, exe, work = sys.argv[1], pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])
+exe, work = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 fixtures, out = work / "fixtures", work / "out"
 PORT = 18765
 
-subprocess.run([sys.executable, here / "make_fixtures.py", repo, fixtures], check=True)
+subprocess.run([sys.executable, here / "make_fixtures.py", fixtures], check=True)
 
 mock = subprocess.Popen([sys.executable, here / "mock_firebase.py", str(PORT)])
 try:
@@ -37,7 +37,7 @@ try:
     if result.returncode != 0:
         sys.exit(f"C++ tests failed: {result.returncode}")
 
-    subprocess.run([sys.executable, here / "verify_outputs.py", repo, fixtures, out, str(PORT)],
+    subprocess.run([sys.executable, here / "verify_outputs.py", fixtures, out, str(PORT)],
                    check=True)
 finally:
     mock.terminate()

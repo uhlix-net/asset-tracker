@@ -40,6 +40,7 @@ private:
 
     QLabel *m_id, *m_name, *m_category, *m_purchase, *m_value, *m_current;
     QLabel *m_serial, *m_model, *m_receiptLabel, *m_added;
+    QLabel *m_emptyState;
     QScrollArea *m_scroll;
     QGridLayout *m_photos;
     QTextEdit *m_notes;

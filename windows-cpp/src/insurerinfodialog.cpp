@@ -4,9 +4,11 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 #include "config.h"
+#include "theme.h"
 
 InsurerInfo loadInsurerInfo() {
     const auto settings = Config::openSettings();
@@ -23,29 +25,33 @@ InsurerInfoDialog::InsurerInfoDialog(QWidget *parent) : QDialog(parent) {
     setMinimumWidth(420);
 
     auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(20, 16, 20, 16);
 
-    auto *note = new QLabel("This information will appear on the report cover page.\n"
-                            "All fields are optional — leave blank if unknown.");
-    note->setStyleSheet("color: #555; font-size: 10px;");
+    auto *note = new QLabel("This information appears on the report cover page. "
+                            "All fields are optional.");
+    note->setObjectName("hint");
     note->setWordWrap(true);
     layout->addWidget(note);
 
     const InsurerInfo saved = loadInsurerInfo();
     auto *form = new QFormLayout;
-    form->setLabelAlignment(Qt::AlignRight);
+    form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    form->setVerticalSpacing(8);
     const auto addRow = [form](const QString &label, const QString &value, const QString &hint) {
         auto *edit = new QLineEdit(value);
         edit->setPlaceholderText(hint);
         form->addRow(label, edit);
         return edit;
     };
-    m_company = addRow("Insurance Company:", saved.company, "e.g. State Farm Insurance");
-    m_policy = addRow("Policy Number:", saved.policyNumber, "e.g. PO-1234567");
-    m_claim = addRow("Claim Number:", saved.claimNumber, "e.g. CLM-2026-00001");
-    m_lossDate = addRow("Date of Loss:", saved.dateOfLoss, "e.g. May 1, 2026");
+    m_company = addRow("Insurance company", saved.company, "e.g. State Farm Insurance");
+    m_policy = addRow("Policy number", saved.policyNumber, "e.g. PO-1234567");
+    m_claim = addRow("Claim number", saved.claimNumber, "e.g. CLM-2026-00001");
+    m_lossDate = addRow("Date of loss", saved.dateOfLoss, "e.g. May 1, 2026");
     layout->addLayout(form);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    buttons->button(QDialogButtonBox::Ok)->setText("Continue");
+    Theme::markPrimary(buttons->button(QDialogButtonBox::Ok));
     connect(buttons, &QDialogButtonBox::accepted, this, &InsurerInfoDialog::onAccept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);

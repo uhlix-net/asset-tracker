@@ -96,24 +96,21 @@ void MainWindow::buildUi() {
     m_toolbar = new Toolbar;
     root->addWidget(m_toolbar);
 
-    auto *line = new QWidget;
-    line->setFixedHeight(1);
-    line->setStyleSheet("background: #d0d0d0;");
-    root->addWidget(line);
-
     m_splitter = new QSplitter(Qt::Horizontal);
+    m_splitter->setHandleWidth(1);
+    m_splitter->setChildrenCollapsible(false);
     m_assetList = new AssetList(m_db);
     m_preview = new PreviewPanel(m_db);
     m_splitter->addWidget(m_assetList);
     m_splitter->addWidget(m_preview);
-    m_splitter->setStretchFactor(0, 1);
-    m_splitter->setStretchFactor(1, 1);
+    m_splitter->setStretchFactor(0, 3);
+    m_splitter->setStretchFactor(1, 2);
 
     const auto settings = Config::openSettings();
     if (settings->contains("splitter")) {
         m_splitter->restoreState(settings->value("splitter").toByteArray());
     } else {
-        m_splitter->setSizes({width() / 2, width() / 2});
+        m_splitter->setSizes({width() * 3 / 5, width() * 2 / 5});
     }
     root->addWidget(m_splitter, 1);
 
@@ -153,7 +150,9 @@ void MainWindow::buildUi() {
 
 void MainWindow::buildStatusBar() {
     m_countLabel = new QLabel;
+    m_countLabel->setContentsMargins(8, 2, 0, 2);
     m_valuesLabel = new QLabel;
+    m_valuesLabel->setContentsMargins(0, 2, 8, 2);
     statusBar()->addWidget(m_countLabel);
     statusBar()->addPermanentWidget(m_valuesLabel);
 }
@@ -165,12 +164,12 @@ void MainWindow::refreshAssets() {
 
 void MainWindow::updateStatusBar() {
     const Totals totals = m_db->getTotals();
-    m_countLabel->setText(QString("  %1 asset%2").arg(totals.count)
+    m_countLabel->setText(QString("%1 asset%2").arg(totals.count)
                               .arg(totals.count == 1 ? "" : "s"));
     QStringList parts;
-    if (totals.purchaseTotal) parts << "Purchase Price: " + moneyDisplay(totals.purchaseTotal);
-    if (totals.currentTotal) parts << "Current: " + moneyDisplay(totals.currentTotal);
-    m_valuesLabel->setText(parts.isEmpty() ? QString() : parts.join("  |  ") + "  ");
+    if (totals.purchaseTotal) parts << "Purchase total  " + moneyDisplay(totals.purchaseTotal);
+    if (totals.currentTotal) parts << "Current value  " + moneyDisplay(totals.currentTotal);
+    m_valuesLabel->setText(parts.join("     ·     "));
 }
 
 void MainWindow::onAdd() {

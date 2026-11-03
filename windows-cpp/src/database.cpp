@@ -130,7 +130,7 @@ void Database::createSchema() {
     run(db, "CREATE INDEX IF NOT EXISTS idx_af_asset_id ON asset_files(asset_id)");
 }
 
-// Adds columns introduced after the first Python release to existing databases.
+// Adds columns introduced after the first release to existing databases.
 void Database::migrate() {
     QSqlDatabase db = QSqlDatabase::database(m_connection);
     const QSqlRecord assets = db.record("assets");

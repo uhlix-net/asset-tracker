@@ -17,7 +17,7 @@ struct Entry {
 
 const Entry kHelp[] = {
     {"PHOTO AND RECEIPT ENCRYPTION", nullptr},
-    {nullptr, "AssetTracker automatically encrypts every photo and receipt file you upload "
+    {nullptr, "Asset Tracker automatically encrypts every photo and receipt file you upload "
               "using <b>Windows Data Protection API (DPAPI)</b> before writing it to disk."},
 
     {"What is Windows DPAPI?", nullptr},
@@ -47,9 +47,6 @@ const Entry kHelp[] = {
               "archives protected by a password you choose. Files inside are protected by that "
               "password alone, not by DPAPI, so a backup restores on any PC. Keep the password "
               "safe: it cannot be recovered."},
-    {nullptr, "<b>Backups made by the older Python edition</b> still contain DPAPI-locked "
-              "files. They restore only for the Windows account that made them. Create a new "
-              "backup after upgrading."},
 
     {"Transferring data to another computer", nullptr},
     {nullptr, "1. On the old PC: <b>File → Create Backup…</b> (choose a strong password)."},
@@ -76,7 +73,7 @@ const Entry kHelp[] = {
 } // namespace
 
 HelpDialog::HelpDialog(QWidget *parent) : QDialog(parent) {
-    setWindowTitle(QString("%1 Help").arg(Config::kAppName));
+    setWindowTitle("Asset Tracker Help");
     setMinimumSize(560, 500);
     resize(600, 580);
 
@@ -90,24 +87,20 @@ HelpDialog::HelpDialog(QWidget *parent) : QDialog(parent) {
     scroll->setWidget(container);
     auto *layout = new QVBoxLayout(container);
     layout->setAlignment(Qt::AlignTop);
+    layout->setContentsMargins(20, 8, 20, 16);
     layout->setSpacing(6);
 
     for (const Entry &entry : kHelp) {
         if (entry.heading) {
-            auto *label = new QLabel(entry.heading);
-            label->setStyleSheet("font-size: 12px; font-weight: bold; color: #1B2A3B; "
-                                 "margin-top: 10px;");
+            auto *label = new QLabel(QString(entry.heading).toUpper());
+            label->setObjectName("section");
             layout->addWidget(label);
-            auto *rule = new QFrame;
-            rule->setFrameShape(QFrame::HLine);
-            rule->setStyleSheet("color: #c0c8d0;");
-            layout->addWidget(rule);
         }
         if (entry.body) {
             auto *label = new QLabel(entry.body);
             label->setWordWrap(true);
             label->setTextFormat(Qt::RichText);
-            label->setStyleSheet("color: #333; font-size: 10px; padding-left: 4px;");
+            label->setTextInteractionFlags(Qt::TextSelectableByMouse);
             layout->addWidget(label);
         }
     }

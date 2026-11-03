@@ -1,40 +1,73 @@
-"""Generates test fixtures by running the real Python edition's code.
+"""Writes test fixtures in the formats older Asset Tracker versions produced.
 
-Run with a Windows Python that has requirements.txt installed:
-    python make_fixtures.py <python-repo-root> <fixture-dir>
+    python make_fixtures.py <fixture-dir>
 
-Everything the C++ edition must stay compatible with comes out of the code that
-wrote it: the database, DPAPI files, backups, sync blobs and slugs.
+These formats are fixed: existing users have data written this way, so the C++
+app must keep reading it. Nothing here should change to match new app behaviour.
 """
-import io
+import base64
 import json
 import os
 import pathlib
+import re
 import shutil
+import sqlite3
 import sys
-import zipfile
 
-repo, out = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+import pyzipper
+import win32crypt
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.hashes import SHA256
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from PIL import Image
+from reportlab.lib.pagesizes import LETTER
+from reportlab.pdfgen import canvas
+
+out = pathlib.Path(sys.argv[1])
 shutil.rmtree(out, ignore_errors=True)
-data_root = out / "legacy"
-data_root.mkdir(parents=True)
-os.environ["APPDATA"] = str(data_root)   # config.py reads this at import time
-sys.path.insert(0, str(repo))
-
-from PIL import Image, PngImagePlugin
-
-from asset_tracker import backup, report, storage, sync
-from asset_tracker.config import DATA_DIR
-from asset_tracker.database import Database
-from asset_tracker.models import Asset, AssetFile, slugify
-
+data_dir = out / "legacy" / "AssetTracker"
+assets_dir = data_dir / "assets"
+(data_dir / "db").mkdir(parents=True)
 src = out / "source"
 src.mkdir()
 
+BACKUP_PASSWORD = "correct horse"
+SYNC_PASSWORD = "sync pässword"
+DPAPI_HEADER = bytes.fromhex("01000000d08c9ddf0115d1118c7a00c04fc297eb")
+
+# Folder names on disk, as older versions computed them. Frozen, not computed:
+# the C++ slugify() must keep matching these.
+SLUGS = {
+    'Samsung 65" TV': "samsung_65_tv",
+    "  Leading and trailing  ": "leading_and_trailing",
+    "under_score-dash mix": "under_score_dash_mix",
+    "A/B\\C:D*E?": "abcde",
+    "Café Espresso Machine — Ünï": "café_espresso_machine_ünï",
+    "日本語のテレビ": "日本語のテレビ",
+    "x" * 60: "x" * 40,
+    "Émile's 🎸 guitar": "émiles_guitar",
+    "Dots...and   spaces": "dotsand_spaces",
+    "---": "_",
+    "": "",
+}
+
+
+def slugify(text):
+    text = re.sub(r"[^\w\s-]", "", text.lower().strip())
+    return re.sub(r"[\s_-]+", "_", text)[:40]
+
+
+assert all(slugify(k) == v for k, v in SLUGS.items()), "slug reference drifted"
+
+
+def protect(data):
+    return win32crypt.CryptProtectData(data, None, None, None, None, 0)
+
+
 def image(name, colour, size=(1600, 1200), exif_orientation=None):
     img = Image.new("RGB", size, colour)
-    for x in range(0, size[0] // 2):
-        for y in range(0, size[1] // 10):
+    for x in range(size[0] // 2):
+        for y in range(size[1] // 10):
             img.putpixel((x, y), (255, 255, 255))
     path = src / name
     if exif_orientation:
@@ -45,9 +78,8 @@ def image(name, colour, size=(1600, 1200), exif_orientation=None):
         img.save(path)
     return path
 
+
 def receipt_pdf(name, pages):
-    from reportlab.lib.pagesizes import LETTER
-    from reportlab.pdfgen import canvas
     path = src / name
     c = canvas.Canvas(str(path), pagesize=LETTER)
     for page in range(pages):
@@ -57,93 +89,101 @@ def receipt_pdf(name, pages):
     c.save()
     return path
 
-db = Database()
-assets = [
-    Asset(id="00001", name='Samsung 65" TV', category="Living Room", date_purchase="2024-03-15",
-          value_estimate=1234567.89, current_value=999.5, serial_number="SN-1",
-          model_number="QN65", has_receipt=True, date_added="2026-01-02T03:04:05Z",
-          notes="Wall mounted.\nSecond line of notes."),
-    Asset(id="00002", name="Café Espresso Machine — Ünï", category="Kitchen", date_purchase=None,
-          value_estimate=None, current_value=None, serial_number="", model_number="",
-          has_receipt=True, date_added="2026-01-03T03:04:05Z", notes=""),
-    Asset(id="00003", name="Uncategorized widget", category="", date_purchase="2020-01-01",
-          value_estimate=20.0, current_value=None, serial_number="", model_number="",
-          has_receipt=False, date_added="2026-01-04T03:04:05Z", notes="x" * 400),
+
+db = sqlite3.connect(data_dir / "db" / "tracker.db")
+db.executescript("""
+    CREATE TABLE assets (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL DEFAULT '',
+        date_purchase TEXT, value_estimate REAL, current_value REAL,
+        serial_number TEXT NOT NULL DEFAULT '', model_number TEXT NOT NULL DEFAULT '',
+        has_receipt INTEGER NOT NULL DEFAULT 0, date_added TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '');
+    CREATE TABLE asset_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+        file_name TEXT NOT NULL, file_type TEXT NOT NULL, stored_name TEXT NOT NULL,
+        date_added TEXT NOT NULL, encrypted INTEGER NOT NULL DEFAULT 0);
+    CREATE INDEX idx_af_asset_id ON asset_files(asset_id);
+""")
+
+ASSETS = [
+    ("00001", 'Samsung 65" TV', "Living Room", "2024-03-15", 1234567.89, 999.5, "SN-1", "QN65",
+     1, "2026-01-02T03:04:05Z", "Wall mounted.\nSecond line of notes."),
+    ("00002", "Café Espresso Machine — Ünï", "Kitchen", None, None, None, "", "",
+     1, "2026-01-03T03:04:05Z", ""),
+    ("00003", "Uncategorized widget", "", "2020-01-01", 20.0, None, "", "",
+     0, "2026-01-04T03:04:05Z", "x" * 400),
 ]
-for asset in assets:
-    db.insert_asset(asset)
+db.executemany("INSERT INTO assets VALUES (?,?,?,?,?,?,?,?,?,?,?)", ASSETS)
 
-def add(asset, paths, kind):
-    for f in storage.import_files(asset, paths, kind):
-        db.insert_asset_file(f)
 
-add(assets[0], [image("front.jpg", (200, 30, 30)), image("rotated.jpg", (30, 200, 30), exif_orientation=6),
+def add(asset, paths, kind, encrypted=True):
+    folder = assets_dir / f"{asset[0]}_{slugify(asset[1])}"
+    folder.mkdir(parents=True, exist_ok=True)
+    for path in paths:
+        raw = path.read_bytes()
+        (folder / path.name).write_bytes(protect(raw) if encrypted else raw)
+        db.execute("INSERT INTO asset_files (asset_id, file_name, file_type, stored_name, "
+                   "date_added, encrypted) VALUES (?,?,?,?,?,?)",
+                   (asset[0], path.name, kind, path.name, asset[9], int(encrypted)))
+
+
+add(ASSETS[0], [image("front.jpg", (200, 30, 30)),
+                image("rotated.jpg", (30, 200, 30), exif_orientation=6),
                 image("back.png", (30, 30, 200)), image("side.webp", (200, 200, 30))], "image")
-add(assets[0], [receipt_pdf("tv_receipt.pdf", 2)], "receipt")
-add(assets[1], [image("espresso.jpg", (120, 80, 40), (800, 600))], "image")
-add(assets[1], [image("espresso_receipt.jpg", (240, 240, 240), (850, 1100))], "receipt")
-
-# A file from before DPAPI encryption was added.
-plain_dir = storage.asset_dir(assets[2])
-plain_dir.mkdir(parents=True)
-shutil.copy(image("old.png", (90, 90, 90), (640, 480)), plain_dir / "old.png")
-db.insert_asset_file(AssetFile(id=None, asset_id="00003", file_name="old.png", file_type="image",
-                               stored_name="old.png", date_added="2026-01-04T03:04:05Z",
-                               encrypted=False))
-
-records = db.get_all_assets_with_files()
-report.generate_report(records, out / "python_report.pdf",
-                       {"company": "Acme Mutual", "policy_number": "PO-1", "claim_number": "",
-                        "date_of_loss": "May 1, 2026"})
+add(ASSETS[0], [receipt_pdf("tv_receipt.pdf", 2)], "receipt")
+add(ASSETS[1], [image("espresso.jpg", (120, 80, 40), (800, 600))], "image")
+add(ASSETS[1], [image("espresso_receipt.jpg", (240, 240, 240), (850, 1100))], "receipt")
+add(ASSETS[2], [image("old.png", (90, 90, 90), (640, 480))], "image", encrypted=False)
+db.commit()
 db.close()
 
-PASSWORD = "correct horse"
-backup.create_backup(PASSWORD, out / "legacy_backup.zip")
 
-# The same backup with one file replaced by a DPAPI blob this account cannot open,
-# which is what restoring on another Windows account looks like.
-import pyzipper
-with pyzipper.AESZipFile(out / "legacy_backup.zip") as zin, \
-     pyzipper.AESZipFile(out / "locked_backup.zip", "w", compression=pyzipper.ZIP_DEFLATED,
-                         encryption=pyzipper.WZ_AES) as zo:
-    zin.setpassword(PASSWORD.encode())
-    zo.setpassword(PASSWORD.encode())
-    for name in zin.namelist():
-        payload = zin.read(name)
-        if name.endswith("front.jpg"):
-            payload = bytes.fromhex("01000000d08c9ddf0115d1118c7a00c04fc297eb") + b"\0" * 200
-        zo.writestr(name, payload)
+def write_backup(path, entries):
+    with pyzipper.AESZipFile(path, "w", compression=pyzipper.ZIP_DEFLATED,
+                             encryption=pyzipper.WZ_AES) as zf:
+        zf.setpassword(BACKUP_PASSWORD.encode())
+        for name, payload in entries:
+            zf.writestr(name, payload)
+
+
+# Format 1 backup: db/ and assets/ as stored, DPAPI files included, no format entry.
+legacy = [(p.relative_to(data_dir).as_posix(), p.read_bytes())
+          for p in sorted(data_dir.rglob("*")) if p.is_file()]
+write_backup(out / "legacy_backup.zip", legacy)
+
+# The same, with one file locked to a Windows account this one is not.
+write_backup(out / "locked_backup.zip",
+             [(n, DPAPI_HEADER + b"\0" * 200 if n.endswith("front.jpg") else b)
+              for n, b in legacy])
 
 # Hostile and useless archives.
-with pyzipper.AESZipFile(out / "evil_backup.zip", "w", compression=pyzipper.ZIP_DEFLATED,
-                         encryption=pyzipper.WZ_AES) as zo:
-    zo.setpassword(PASSWORD.encode())
-    with pyzipper.AESZipFile(out / "legacy_backup.zip") as zin:
-        zin.setpassword(PASSWORD.encode())
-        zo.writestr("db/tracker.db", zin.read("db/tracker.db"))
-    zo.writestr("../escaped.txt", b"should never be written")
-    zo.writestr("assets/../../escaped2.txt", b"should never be written")
-with pyzipper.AESZipFile(out / "not_a_backup.zip", "w", encryption=pyzipper.WZ_AES) as zo:
-    zo.setpassword(PASSWORD.encode())
-    zo.writestr("hello.txt", b"hi")
+db_bytes = (data_dir / "db" / "tracker.db").read_bytes()
+write_backup(out / "evil_backup.zip", [("db/tracker.db", db_bytes),
+                                       ("../escaped.txt", b"should never be written"),
+                                       ("assets/../../escaped2.txt", b"should never be written")])
+write_backup(out / "not_a_backup.zip", [("hello.txt", b"hi")])
 (out / "garbage.zip").write_bytes(b"this is not a zip file")
 
-SYNC_PASSWORD = "sync pässword"
-key = sync.derive_key(SYNC_PASSWORD)
-meta = {"id": "00009", "name": "Python blob ✓", "value_estimate": "1234.5", "current_value": "",
-        "has_receipt": "1", "date_added": "2026-01-01T00:00:00Z"}
+# Sync encryption, as the Android app implements it.
+key = PBKDF2HMAC(algorithm=SHA256(), length=32, salt=b"AssetTrackerSync_v1_uhlix",
+                 iterations=600_000).derive(SYNC_PASSWORD.encode())
 
+
+def encrypt(plain):
+    nonce = os.urandom(12)
+    return nonce + AESGCM(key).encrypt(nonce, plain, None)
+
+
+meta = {"id": "00009", "name": "Reference blob ✓", "value_estimate": "1234.5",
+        "current_value": "", "has_receipt": "1", "date_added": "2026-01-01T00:00:00Z"}
 expected = {
-    "backup_password": PASSWORD,
+    "backup_password": BACKUP_PASSWORD,
     "sync_password": SYNC_PASSWORD,
     "sync_key_hex": key.hex(),
-    "sync_blob": sync.encrypt_json(meta, key),
-    "file_blob": __import__("base64").b64encode(sync.encrypt(b"file bytes", key)).decode(),
-    "slugs": {name: slugify(name) for name in [
-        'Samsung 65" TV', "  Leading and trailing  ", "under_score-dash mix", "A/B\\C:D*E?",
-        "Café Espresso Machine — Ünï", "日本語のテレビ", "x" * 60, "Émile's 🎸 guitar",
-        "Dots...and   spaces", "---", "",
-    ]},
+    "sync_blob": base64.b64encode(encrypt(json.dumps(meta, ensure_ascii=False).encode())).decode(),
+    "file_blob": base64.b64encode(encrypt(b"file bytes")).decode(),
+    "slugs": SLUGS,
     "originals": {
         "front.jpg": (src / "front.jpg").read_bytes().hex(),
         "old.png": (src / "old.png").read_bytes().hex(),

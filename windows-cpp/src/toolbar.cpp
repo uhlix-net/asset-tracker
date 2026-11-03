@@ -1,40 +1,52 @@
 #include "toolbar.h"
 
-#include <QApplication>
 #include <QComboBox>
+#include <QFrame>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QStyle>
 #include <QTimer>
 
 #include "config.h"
+#include "icons.h"
+#include "theme.h"
 
 namespace {
 
-QPushButton *makeButton(const QString &text, QStyle::StandardPixmap icon, bool enabled = true) {
-    auto *button = new QPushButton(text);
-    button->setIcon(QApplication::style()->standardIcon(icon));
+QPushButton *makeButton(const QString &text, const QIcon &icon, const char *role = "flat",
+                        bool enabled = true) {
+    auto *button = new QPushButton(icon, text);
+    button->setObjectName(role);
     button->setIconSize(QSize(16, 16));
-    button->setFixedHeight(32);
+    button->setCursor(Qt::PointingHandCursor);
     button->setEnabled(enabled);
     return button;
+}
+
+QFrame *divider() {
+    auto *line = new QFrame;
+    line->setObjectName("rule");
+    line->setFixedSize(1, 22);
+    return line;
 }
 
 } // namespace
 
 Toolbar::Toolbar(QWidget *parent) : QWidget(parent) {
-    auto *layout = new QHBoxLayout(this);
-    layout->setContentsMargins(8, 6, 8, 6);
-    layout->setSpacing(6);
+    setObjectName("toolbar");
+    setAttribute(Qt::WA_StyledBackground);
 
-    auto *add = makeButton("Add Asset", QStyle::SP_FileDialogNewFolder);
-    m_edit = makeButton("Edit", QStyle::SP_FileDialogDetailedView, false);
-    m_duplicate = makeButton("Duplicate", QStyle::SP_FileLinkIcon, false);
-    m_delete = makeButton("Delete", QStyle::SP_TrashIcon, false);
-    auto *backup = makeButton("Backup", QStyle::SP_DialogSaveButton);
-    auto *print = makeButton("Print Report", QStyle::SP_FileIcon);
+    auto *layout = new QHBoxLayout(this);
+    layout->setContentsMargins(12, 8, 12, 8);
+    layout->setSpacing(4);
+
+    const QColor ink = Theme::kText;
+    auto *add = makeButton("Add Asset", Icons::add(Qt::white), "primary");
+    m_edit = makeButton("Edit", Icons::edit(ink), "flat", false);
+    m_duplicate = makeButton("Duplicate", Icons::duplicate(ink), "flat", false);
+    m_delete = makeButton("Delete", Icons::remove(ink), "flat", false);
+    auto *backup = makeButton("Backup", Icons::backup(ink));
+    auto *print = makeButton("Print Report", Icons::print(ink));
 
     connect(add, &QPushButton::clicked, this, &Toolbar::addClicked);
     connect(m_edit, &QPushButton::clicked, this, &Toolbar::editClicked);
@@ -44,9 +56,8 @@ Toolbar::Toolbar(QWidget *parent) : QWidget(parent) {
     connect(print, &QPushButton::clicked, this, &Toolbar::printClicked);
 
     m_category = new QComboBox;
-    m_category->setFixedHeight(32);
-    m_category->setMinimumWidth(140);
-    m_category->addItem("All Categories", QString());
+    m_category->setMinimumWidth(170);
+    m_category->addItem("All categories", QString());
     for (const QString &category : Config::categories())
         m_category->addItem(category, category);
     connect(m_category, &QComboBox::currentIndexChanged, this, [this] {
@@ -54,10 +65,10 @@ Toolbar::Toolbar(QWidget *parent) : QWidget(parent) {
     });
 
     m_search = new QLineEdit;
-    m_search->setPlaceholderText("Search by name...");
+    m_search->setPlaceholderText("Search assets");
     m_search->setClearButtonEnabled(true);
-    m_search->setFixedHeight(32);
-    m_search->setMaximumWidth(240);
+    m_search->setFixedWidth(240);
+    m_search->addAction(Icons::search(Theme::kMuted), QLineEdit::LeadingPosition);
 
     m_debounce = new QTimer(this);
     m_debounce->setSingleShot(true);
@@ -67,13 +78,19 @@ Toolbar::Toolbar(QWidget *parent) : QWidget(parent) {
     });
     connect(m_search, &QLineEdit::textChanged, m_debounce, qOverload<>(&QTimer::start));
 
-    for (QWidget *button : {static_cast<QWidget *>(add), static_cast<QWidget *>(m_edit),
-                            static_cast<QWidget *>(m_duplicate), static_cast<QWidget *>(m_delete),
-                            static_cast<QWidget *>(backup), static_cast<QWidget *>(print)})
-        layout->addWidget(button);
+    layout->addWidget(add);
+    layout->addSpacing(8);
+    layout->addWidget(m_edit);
+    layout->addWidget(m_duplicate);
+    layout->addWidget(m_delete);
+    layout->addSpacing(6);
+    layout->addWidget(divider());
+    layout->addSpacing(6);
+    layout->addWidget(backup);
+    layout->addWidget(print);
     layout->addStretch();
     layout->addWidget(m_category);
-    layout->addWidget(new QLabel("Search:"));
+    layout->addSpacing(6);
     layout->addWidget(m_search);
 }
 

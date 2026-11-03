@@ -4,7 +4,7 @@
 !define DISPLAYNAME "Asset Tracker"
 !define EXENAME "asset_tracker.exe"
 !define PUBLISHER "uhlix-net"
-; The Python edition's key on purpose: this installer upgrades it in place.
+; The same key earlier versions used, so this installer upgrades them in place.
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\AssetTracker"
 
 !include "MUI2.nsh"
@@ -46,9 +46,10 @@ Function IsAppRunning
     Push "0"
 FunctionEnd
 
-; The Python edition runs as pythonw.exe from this install folder, or with
-; Asset Tracker in the title. Any other pythonw process is left alone.
-Function StopPythonEdition
+; Earlier versions ran as pythonw.exe from this install folder, or with
+; AssetTracker in the title. Any other pythonw process is left alone.
+; Can be removed once no installs older than 0.1.0 remain.
+Function StopOldVersion
   FileOpen  $R9 "$TEMP\close_at.ps1" w
   FileWrite $R9 '$$p = Get-Process -Name pythonw -EA SilentlyContinue$\r$\n'
   FileWrite $R9 '$$p | Where-Object { ($$_.Path -like "*AssetTracker*") -or ($$_.MainWindowTitle -like "*AssetTracker*") } | ForEach-Object { $$_.CloseMainWindow() | Out-Null }$\r$\n'
@@ -117,9 +118,9 @@ FunctionEnd
 Section "Application" SecApp
   SetRegView 64
 
-  ; Upgrade from the Python edition. Only program files go: user data lives in
-  ; %APPDATA%\AssetTracker and is not touched.
-  Call StopPythonEdition
+  ; Upgrade from versions before 0.1.0. Only their program files go: user data
+  ; lives in %APPDATA%\AssetTracker and is not touched.
+  Call StopOldVersion
   RMDir /r "$INSTDIR\.venv"
   RMDir /r "$INSTDIR\asset_tracker"
   Delete "$INSTDIR\main.py"
@@ -162,7 +163,7 @@ Section "Application" SecApp
   WriteRegDWORD HKLM "${UNINSTKEY}" "EstimatedSize" "$0"
 
   ; Delete existing shortcuts before recreating so the .lnk icon cache is flushed.
-  ; These replace the Python edition's, which pointed at launch.vbs.
+  ; These replace older shortcuts, which pointed at launch.vbs.
   Delete "$SMPROGRAMS\${DISPLAYNAME}\${DISPLAYNAME}.lnk"
   Delete "$SMPROGRAMS\${DISPLAYNAME}\Uninstall ${DISPLAYNAME}.lnk"
   Delete "$DESKTOP\${DISPLAYNAME}.lnk"

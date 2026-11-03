@@ -1,17 +1,15 @@
-# Asset Tracker — C++ Edition
+# Asset Tracker
 
-A C++17/Qt 6 Windows application for documenting household items for insurance. This
-is the default edition from 0.1.0. The Python/PyQt6 edition at the repo root and the
-Android app in `android_app/` are maintained as-is; the Android app reads what this
-edition syncs and needed no changes.
+A C++17/Qt 6 Windows application for documenting household items for insurance. The
+Android app in `android_app/` reads what this app syncs to Firebase.
 
-It upgrades a Python install in place: same `%APPDATA%\AssetTracker` data, same
-registry settings, same uninstall key, same Firebase layout.
+Installing over an older version upgrades it in place: user data stays in
+`%APPDATA%\AssetTracker`, settings in `HKCU\Software\AssetTracker`.
 
 ## Dependencies
 
 - **Qt 6.9.x** (MSVC 2022 64-bit) with the **Qt PDF** add-on. Add it with the
-  Maintenance Tool under *Additional Libraries → Qt PDF*. Used to embed PDF receipts.
+  Maintenance Tool under *Additional Libraries → Qt PDF*. It's used to embed PDF receipts.
 - **OpenSSL 3.x** (sync encryption) and **libzip** (AES backups), via vcpkg in
   manifest mode: `vcpkg.json` installs them during configure.
 - **CMake 4.2+**, **Visual Studio 2026** with the C++ workload, **NSIS 3.x**.
@@ -32,24 +30,32 @@ cd installer && "C:\Program Files (x86)\NSIS\makensis.exe" setup.nsi
 `--config Release` is required, or you silently get a Debug build. Output is
 `installer\Output\AssetTracker_Setup.exe`.
 
-The version lives in one place, `project()` in `CMakeLists.txt`. Editing `CMakeLists.txt`
+The version is set in one place, `project()` in `CMakeLists.txt`. Editing `CMakeLists.txt`
 or `vcpkg.json` calls for a full rebuild: delete `build\` and run all three steps.
+
+## Look and feel
+
+All colours, fonts and the stylesheet live in `src/theme.cpp`; icons are drawn in
+`src/icons.cpp`. Widgets choose a style by object name (`primary`, `section`, `hint`,
+...), so don't add per-widget `setStyleSheet` colours.
 
 ## Tests
 
 ```cmd
-python tests\run_tests.py <repo root> build\Release\asset_tracker_tests.exe %TEMP%\at_tests
+py -m venv %TEMP%\at_venv
+%TEMP%\at_venv\Scripts\pip install -r tests\requirements.txt
+%TEMP%\at_venv\Scripts\python tests\run_tests.py build\Release\asset_tracker_tests.exe %TEMP%\at_tests
 ```
 
-Use a Python with the root `requirements.txt` installed. `make_fixtures.py` generates
-fixtures by running the Python edition's own code, the C++ tests read them, and
-`verify_outputs.py` reads what C++ wrote back with Python. `mock_firebase.py` stands in
-for Firebase, so nothing touches a real project. Tests use a private data folder and
-settings file. Set `ASSET_TRACKER_REAL_DATA` to an AssetTracker folder to read-test a
-temporary copy of it.
+`make_fixtures.py` writes sample data in the formats older versions produced: the
+database, DPAPI-encrypted files, backups and sync blobs. The C++ tests read it, and
+`verify_outputs.py` independently checks what C++ wrote. `mock_firebase.py` stands in for
+Firebase, so nothing touches a real project. Tests use a private data folder and settings
+file. Set `ASSET_TRACKER_REAL_DATA` to an AssetTracker folder to read-test a temporary
+copy of it.
 
-Run on the real Windows platform, not `offscreen`: that platform has no fonts, so PDFs
-come out with blocks in place of text.
+The tests run on the real Windows platform, not `offscreen`. That platform has no fonts,
+so PDFs come out with blocks in place of text. A few windows flash on screen.
 
 ## Compatibility rules
 

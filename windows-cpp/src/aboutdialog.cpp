@@ -13,8 +13,7 @@ namespace {
 
 QLabel *pathLabel(const QString &path) {
     auto *label = new QLabel(QDir::toNativeSeparators(path));
-    label->setStyleSheet("color: #555; font-family: monospace;");
-    label->setWordWrap(true);
+    label->setObjectName("mono");
     label->setTextInteractionFlags(Qt::TextSelectableByMouse);
     return label;
 }
@@ -26,15 +25,20 @@ AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
     setMinimumWidth(480);
 
     auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(24, 20, 24, 16);
     layout->setSpacing(8);
 
-    auto *title = new QLabel(Config::kAppName);
-    title->setStyleSheet("font-size: 20px; font-weight: bold;");
+    auto *icon = new QLabel;
+    icon->setPixmap(windowIcon().pixmap(56, 56));
+    icon->setAlignment(Qt::AlignCenter);
+
+    auto *title = new QLabel("Asset Tracker");
+    title->setObjectName("title");
     title->setAlignment(Qt::AlignCenter);
 
     auto *version = new QLabel(QString("Version %1").arg(Config::kAppVersion));
+    version->setObjectName("subtitle");
     version->setAlignment(Qt::AlignCenter);
-    version->setStyleSheet("color: #555;");
 
     auto *description = new QLabel("A personal asset tracking application for documenting\n"
                                    "household items for insurance purposes.");
@@ -42,11 +46,11 @@ AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
     description->setWordWrap(true);
 
     auto *line = new QFrame;
+    line->setObjectName("rule");
     line->setFrameShape(QFrame::HLine);
-    line->setStyleSheet("color: #d0d0d0;");
 
-    auto *pathsLabel = new QLabel("Data Locations");
-    pathsLabel->setStyleSheet("font-weight: bold; color: #333;");
+    auto *pathsLabel = new QLabel("DATA LOCATIONS");
+    pathsLabel->setObjectName("section");
 
     auto *form = new QFormLayout;
     form->setLabelAlignment(Qt::AlignRight);
@@ -57,6 +61,7 @@ AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
 
+    layout->addWidget(icon);
     layout->addWidget(title);
     layout->addWidget(version);
     layout->addSpacing(4);

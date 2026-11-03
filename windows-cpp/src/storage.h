@@ -10,15 +10,15 @@
 #include "models.h"
 
 // Asset files on disk. Files are protected with Windows DPAPI for the current
-// user, using the same call the Python edition made, so its files still open.
+// user, with the same parameters older versions used, so their files still open.
 namespace Storage {
 
 QByteArray protect(const QByteArray &plain);
 
 // Throws when data is a DPAPI blob this Windows account cannot open. Data that
-// is not a blob comes back unchanged (files from before encryption was added);
-// the Python edition returned the blob itself on failure, so a file from another
-// account looked readable and was silently garbage.
+// is not a blob comes back unchanged (files from before encryption was added).
+// Returning the blob itself on failure would make a file from another account
+// look readable when it is garbage.
 QByteArray unprotect(const QByteArray &data);
 bool isProtected(const QByteArray &data);
 
@@ -27,7 +27,7 @@ void writeFile(const QString &path, const QByteArray &data);
 
 // assetsRoot defaults to the live assets folder; restore passes a staging tree.
 // Finds an existing "<id>_*" folder if the computed name is not there, so a slug
-// that differs from the one Python computed cannot lose an asset's files.
+// that differs from the one an older version computed cannot lose an asset's files.
 QString assetDir(const Asset &asset, const QString &assetsRoot = QString());
 QString storedPath(const Asset &asset, const AssetFile &file,
                    const QString &assetsRoot = QString());

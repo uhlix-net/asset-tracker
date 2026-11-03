@@ -19,7 +19,9 @@
 
 #include "config.h"
 #include "database.h"
+#include "icons.h"
 #include "storage.h"
+#include "theme.h"
 
 namespace {
 
@@ -36,9 +38,25 @@ QWidget *rowOf(std::initializer_list<QWidget *> widgets, bool stretch = false) {
 }
 
 QLabel *sectionLabel(const QString &text) {
-    auto *label = new QLabel(text);
-    label->setStyleSheet("font-weight: bold; margin-top: 8px;");
+    auto *label = new QLabel(text.toUpper());
+    label->setObjectName("section");
     return label;
+}
+
+// A muted note with a lock glyph, for the encryption reminders.
+QWidget *lockedNote(const QString &text) {
+    auto *icon = new QLabel;
+    icon->setPixmap(Icons::lock(Theme::kMuted, 14).pixmap(14, 14));
+    icon->setAlignment(Qt::AlignTop);
+    auto *label = new QLabel(text);
+    label->setObjectName("hint");
+    label->setWordWrap(true);
+    auto *row = new QWidget;
+    auto *layout = new QHBoxLayout(row);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(icon);
+    layout->addWidget(label, 1);
+    return row;
 }
 
 QDoubleSpinBox *moneyBox() {
@@ -73,16 +91,19 @@ AssetForm::AssetForm(Database *db, const std::optional<Asset> &existing, QWidget
 
 void AssetForm::buildUi() {
     auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(20, 16, 20, 16);
     auto *form = new QFormLayout;
-    form->setLabelAlignment(Qt::AlignRight);
+    form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    form->setHorizontalSpacing(14);
+    form->setVerticalSpacing(8);
 
     auto *idLabel = new QLabel(m_assetId);
-    idLabel->setStyleSheet("font-weight: bold; color: #555;");
-    form->addRow("Asset ID:", idLabel);
+    idLabel->setObjectName("mono");
+    form->addRow("Asset ID", idLabel);
 
     m_name = new QLineEdit(m_existing ? m_existing->name : QString());
     m_name->setPlaceholderText("e.g. Samsung 65\" TV");
-    form->addRow("Name *:", m_name);
+    form->addRow("Name *", m_name);
 
     m_category = new QComboBox;
     m_category->addItem("— Select Category —", QString());
@@ -92,15 +113,15 @@ void AssetForm::buildUi() {
         const int index = m_category->findData(m_existing->category);
         if (index >= 0) m_category->setCurrentIndex(index);
     }
-    form->addRow("Category:", m_category);
+    form->addRow("Category", m_category);
 
     m_serial = new QLineEdit(m_existing ? m_existing->serialNumber : QString());
     m_serial->setPlaceholderText("Optional");
-    form->addRow("Serial Number:", m_serial);
+    form->addRow("Serial number", m_serial);
 
     m_model = new QLineEdit(m_existing ? m_existing->modelNumber : QString());
     m_model->setPlaceholderText("Optional");
-    form->addRow("Model Number:", m_model);
+    form->addRow("Model number", m_model);
 
     m_date = new QDateEdit;
     m_date->setCalendarPopup(true);
@@ -114,25 +135,25 @@ void AssetForm::buildUi() {
         m_date->setEnabled(false);
     }
     connect(m_noDate, &QCheckBox::toggled, m_date, &QWidget::setDisabled);
-    form->addRow("Purchase Date:", rowOf({m_date, m_noDate}));
+    form->addRow("Purchase date", rowOf({m_date, m_noDate}));
 
     m_value = moneyBox();
     m_noValue = new QCheckBox("Unknown");
     if (m_existing) bindValue(m_value, m_noValue, m_existing->valueEstimate);
     else connect(m_noValue, &QCheckBox::toggled, m_value, &QWidget::setDisabled);
-    form->addRow("Purchase Price:", rowOf({m_value, m_noValue}));
+    form->addRow("Purchase price", rowOf({m_value, m_noValue}));
 
     m_current = moneyBox();
     m_noCurrent = new QCheckBox("Unknown");
     bindValue(m_current, m_noCurrent, m_existing ? m_existing->currentValue : std::nullopt);
-    form->addRow("Current Value:", rowOf({m_current, m_noCurrent}));
+    form->addRow("Current value", rowOf({m_current, m_noCurrent}));
 
     m_hasReceipt = new QCheckBox("I have a sales receipt");
     m_hasReceipt->setChecked(m_existing && m_existing->hasReceipt);
     auto *receiptButton = new QPushButton(m_existing ? "Replace Receipt..." : "Upload Receipt...");
     receiptButton->setEnabled(m_hasReceipt->isChecked());
     m_receiptLabel = new QLabel;
-    m_receiptLabel->setStyleSheet("color: gray; font-size: 11px;");
+    m_receiptLabel->setObjectName("hint");
     for (const AssetFile &file : m_existingFiles) {
         if (file.fileType == "receipt") {
             m_receiptLabel->setText("Current: " + file.fileName);
@@ -141,12 +162,12 @@ void AssetForm::buildUi() {
     }
     connect(m_hasReceipt, &QCheckBox::toggled, receiptButton, &QWidget::setEnabled);
     connect(receiptButton, &QPushButton::clicked, this, &AssetForm::pickReceipt);
-    form->addRow("Sales Receipt:", rowOf({m_hasReceipt, receiptButton, m_receiptLabel}, true));
+    form->addRow("Sales receipt", rowOf({m_hasReceipt, receiptButton, m_receiptLabel}, true));
 
     layout->addLayout(form);
 
     if (m_existing) {
-        layout->addWidget(sectionLabel("Existing Photos  (select + Remove to delete)"));
+        layout->addWidget(sectionLabel("Current photos"));
         m_existingList = new QListWidget;
         m_existingList->setFixedHeight(90);
         m_existingList->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -158,12 +179,16 @@ void AssetForm::buildUi() {
         }
         layout->addWidget(m_existingList);
 
-        auto *removeExisting = new QPushButton("Remove Selected Photos");
+        auto *removeExisting = new QPushButton("Remove Selected");
+        removeExisting->setToolTip("Select photos above, then remove them when you save");
         connect(removeExisting, &QPushButton::clicked, this, &AssetForm::removeExistingPhotos);
-        layout->addWidget(removeExisting);
+        auto *existingButtons = new QHBoxLayout;
+        existingButtons->addWidget(removeExisting);
+        existingButtons->addStretch();
+        layout->addLayout(existingButtons);
     }
 
-    layout->addWidget(sectionLabel(m_existing ? "Add New Photos" : "Photos of Asset"));
+    layout->addWidget(sectionLabel(m_existing ? "Add photos" : "Photos"));
     m_newPhotoList = new QListWidget;
     m_newPhotoList->setFixedHeight(m_existing ? 70 : 100);
     m_newPhotoList->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -179,13 +204,13 @@ void AssetForm::buildUi() {
     photoButtons->addStretch();
     layout->addLayout(photoButtons);
 
-    auto *note = new QLabel("🔒  Photos and receipts are encrypted on disk using Windows DPAPI.\n"
-                            "    Use  File → Export Asset Files  to obtain unencrypted copies.");
-    note->setStyleSheet("color: #555; font-size: 10px;");
-    note->setWordWrap(true);
-    layout->addWidget(note);
+    layout->addSpacing(6);
+    layout->addWidget(lockedNote("Photos and receipts are encrypted on disk for your Windows "
+                                 "account. Use File → Export Asset Files for unencrypted copies."));
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel);
+    Theme::markPrimary(buttons->button(QDialogButtonBox::Save));
+    buttons->button(QDialogButtonBox::Save)->setText(m_existing ? "Save Changes" : "Add Asset");
     connect(buttons, &QDialogButtonBox::accepted, this, &AssetForm::onAccept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);

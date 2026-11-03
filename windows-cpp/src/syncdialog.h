@@ -12,7 +12,7 @@ class QProgressBar;
 class QPushButton;
 class QThread;
 
-// Rewrites any password the Python edition left in plain text in the registry
+// Rewrites any password left in plain text in the registry by an older version
 // through DPAPI. Runs at every startup so the plaintext goes away even if the
 // sync dialog is never opened.
 void migrateStoredPasswords();

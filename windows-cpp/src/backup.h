@@ -8,10 +8,10 @@ class Database;
 
 // AES-256 ZIP backups of db/ and assets/.
 //
-// Format 2 (this edition) stores asset files decrypted, inside the archive's own
-// encryption, so a backup restores on any PC or Windows account. Format 1 backups
-// from the Python edition hold DPAPI-locked files and only restore for the account
-// that made them. Restore is two steps so nothing live is touched until the whole
+// Format 2 stores asset files decrypted, inside the archive's own encryption, so a
+// backup restores on any PC or Windows account. Format 1 backups (older, with no
+// format entry) hold DPAPI-locked files and only restore for the account that made
+// them. Restore is two steps so nothing live is touched until the whole
 // archive has been read and checked.
 namespace Backup {
 

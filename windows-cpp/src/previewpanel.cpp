@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
@@ -20,7 +21,9 @@
 #include "imageviewer.h"
 #include "insurerinfodialog.h"
 #include "report.h"
+#include "icons.h"
 #include "storage.h"
+#include "theme.h"
 
 namespace {
 
@@ -47,6 +50,12 @@ private:
 
 QString orDash(const QString &text) { return text.isEmpty() ? QStringLiteral("—") : text; }
 
+QLabel *sectionLabel(const QString &text) {
+    auto *label = new QLabel(text);
+    label->setObjectName("section");
+    return label;
+}
+
 } // namespace
 
 PreviewPanel::PreviewPanel(Database *db, QWidget *parent)
@@ -62,8 +71,16 @@ PreviewPanel::PreviewPanel(Database *db, QWidget *parent)
 }
 
 void PreviewPanel::buildUi() {
+    setObjectName("previewPanel");
+    setAttribute(Qt::WA_StyledBackground);
+
     auto *outer = new QVBoxLayout(this);
-    outer->setContentsMargins(8, 8, 8, 8);
+    outer->setContentsMargins(0, 0, 0, 0);
+
+    m_emptyState = new QLabel("Select an asset to see its details.");
+    m_emptyState->setObjectName("emptyState");
+    m_emptyState->setAlignment(Qt::AlignCenter);
+    outer->addWidget(m_emptyState);
 
     m_scroll = new QScrollArea;
     m_scroll->setWidgetResizable(true);
@@ -73,55 +90,77 @@ void PreviewPanel::buildUi() {
     auto *container = new QWidget;
     m_scroll->setWidget(container);
     auto *layout = new QVBoxLayout(container);
+    layout->setContentsMargins(20, 16, 20, 16);
+    layout->setSpacing(6);
     layout->setAlignment(Qt::AlignTop);
 
-    auto *form = new QFormLayout;
-    form->setLabelAlignment(Qt::AlignRight);
-    const auto addRow = [form](const QString &label) {
+    m_name = new QLabel;
+    m_name->setObjectName("title");
+    m_name->setWordWrap(true);
+    m_id = new QLabel;
+    m_id->setObjectName("subtitle");
+    layout->addWidget(m_name);
+    layout->addWidget(m_id);
+
+    layout->addWidget(sectionLabel("DETAILS"));
+    auto *details = new QGridLayout;
+    details->setHorizontalSpacing(24);
+    details->setVerticalSpacing(10);
+    int slot = 0;
+    const auto addField = [details, &slot](const QString &caption) {
+        auto *cell = new QVBoxLayout;
+        cell->setSpacing(1);
+        auto *label = new QLabel(caption);
+        label->setObjectName("fieldLabel");
         auto *value = new QLabel;
-        form->addRow(label, value);
+        value->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        cell->addWidget(label);
+        cell->addWidget(value);
+        details->addLayout(cell, slot / 2, slot % 2);
+        ++slot;
         return value;
     };
-    m_id = addRow("Asset ID:");
-    m_name = addRow("Name:");
-    m_name->setWordWrap(true);
-    m_category = addRow("Category:");
-    m_purchase = addRow("Purchase Date:");
-    m_value = addRow("Purchase Price:");
-    m_current = addRow("Current Value:");
-    m_serial = addRow("Serial Number:");
-    m_model = addRow("Model Number:");
-    m_receiptLabel = addRow("Receipt:");
+    m_category = addField("Category");
+    m_added = addField("Date added");
+    m_value = addField("Purchase price");
+    m_current = addField("Current value");
+    m_purchase = addField("Purchase date");
+    m_receiptLabel = addField("Receipt");
+    m_receiptLabel->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
     m_receiptLabel->setOpenExternalLinks(false);
     connect(m_receiptLabel, &QLabel::linkActivated, this, &PreviewPanel::openReceipt);
-    m_added = addRow("Date Added:");
-    layout->addLayout(form);
+    m_serial = addField("Serial number");
+    m_model = addField("Model number");
+    details->setColumnStretch(0, 1);
+    details->setColumnStretch(1, 1);
+    layout->addLayout(details);
 
-    auto *photosLabel = new QLabel("Photos  (click to view full size)");
-    photosLabel->setStyleSheet("font-weight: bold; margin-top: 8px; color: #1a5276;");
-    layout->addWidget(photosLabel);
-
+    layout->addWidget(sectionLabel("PHOTOS"));
     auto *photosContainer = new QWidget;
     m_photos = new QGridLayout(photosContainer);
-    m_photos->setSpacing(4);
+    m_photos->setContentsMargins(0, 2, 0, 0);
+    m_photos->setSpacing(8);
+    m_photos->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     layout->addWidget(photosContainer);
 
-    auto *notesLabel = new QLabel("Notes");
-    notesLabel->setStyleSheet("font-weight: bold; margin-top: 8px;");
-    layout->addWidget(notesLabel);
+    layout->addWidget(sectionLabel("NOTES"));
     m_notes = new QTextEdit;
-    m_notes->setFixedHeight(80);
+    m_notes->setFixedHeight(90);
     m_notes->setAcceptRichText(false);
+    m_notes->setPlaceholderText("Add notes about this asset. Changes save automatically.");
     connect(m_notes, &QTextEdit::textChanged, m_notesTimer, qOverload<>(&QTimer::start));
     layout->addWidget(m_notes);
 
-    m_open = new QPushButton("Open Asset Folder");
+    auto *buttons = new QHBoxLayout;
+    buttons->setContentsMargins(0, 10, 0, 0);
+    m_open = new QPushButton(Icons::folder(Theme::kText), "Open Folder");
     connect(m_open, &QPushButton::clicked, this, &PreviewPanel::openFolder);
-    layout->addWidget(m_open);
-
-    m_print = new QPushButton("Print This Asset");
+    m_print = new QPushButton(Icons::print(Theme::kText), "Print Asset Record");
     connect(m_print, &QPushButton::clicked, this, &PreviewPanel::printAsset);
-    layout->addWidget(m_print);
+    buttons->addWidget(m_open);
+    buttons->addWidget(m_print);
+    buttons->addStretch();
+    layout->addLayout(buttons);
     layout->addStretch();
 }
 
@@ -135,8 +174,10 @@ void PreviewPanel::showAsset(const Asset &asset) {
     m_asset = asset;
     const QVector<AssetFile> files = m_db->getAssetFiles(asset.id);
 
-    m_id->setText(asset.id);
+    m_id->setText("Asset " + asset.id);
     m_name->setText(asset.name);
+    m_emptyState->hide();
+    m_scroll->show();
     m_category->setText(orDash(asset.category));
     m_purchase->setText(orDash(asset.datePurchase));
     m_value->setText(moneyDisplay(asset.valueEstimate));
@@ -153,11 +194,11 @@ void PreviewPanel::showAsset(const Asset &asset) {
         }
     }
     if (asset.hasReceipt && m_receipt) {
-        m_receiptLabel->setText("<a href=\"open\" style=\"color: #27ae60; text-decoration: none;\">"
-                                "Receipt on file <span style=\"font-weight: bold;\">✓</span></a>");
+        m_receiptLabel->setText(QString("On file · <a href=\"open\" style=\"color: %1;\">View</a>")
+                                    .arg(Theme::kLink.name()));
     } else {
         m_receipt.reset();
-        m_receiptLabel->setText("No receipt");
+        m_receiptLabel->setText(QStringLiteral("—"));
     }
 
     m_notes->blockSignals(true);
@@ -195,9 +236,9 @@ void PreviewPanel::loadPhotos(const Asset &asset, const QVector<AssetFile> &file
         if (file.fileType != "image") continue;
         const QString path = Storage::storedPath(asset, file);
         auto *label = new ClickableLabel(path, file.fileName, file.encrypted);
+        label->setObjectName("photoTile");
         label->setFixedSize(kThumbSize + 4, kThumbSize + 4);
         label->setAlignment(Qt::AlignCenter);
-        label->setStyleSheet("border: 1px solid #aaa;");
 
         const QPixmap pixmap = Storage::thumbnail(path, kThumbSize, file.encrypted);
         if (pixmap.isNull()) {
@@ -211,8 +252,8 @@ void PreviewPanel::loadPhotos(const Asset &asset, const QVector<AssetFile> &file
     }
 
     if (index == 0) {
-        auto *none = new QLabel("No photos");
-        none->setStyleSheet("color: gray;");
+        auto *none = new QLabel("No photos yet. Use Edit to add some.");
+        none->setObjectName("hint");
         m_photos->addWidget(none, 0, 0);
     }
     updateScrollArea();
@@ -236,6 +277,8 @@ void PreviewPanel::clear() {
     m_print->setEnabled(false);
     clearPhotos();
     updateScrollArea();
+    m_scroll->hide();
+    m_emptyState->show();
 }
 
 void PreviewPanel::saveNotes() {
