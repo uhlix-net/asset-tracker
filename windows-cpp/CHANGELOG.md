@@ -20,6 +20,10 @@
   your PC.
 - **Sync Now** (Ctrl+Shift+S) and **Restore from Cloud** are now directly in the File menu.
 
+### Fixed
+- Asset Tracker no longer crashes when you sync on PCs with an older Microsoft Visual C++
+  runtime. The installer now includes the runtime the app needs.
+
 ### Improved
 - **Sync only sends what changed.** After the first sync, only new or edited items and new
   photos are uploaded. Anything missing from your online copy is sent again automatically.

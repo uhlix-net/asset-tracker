@@ -32,6 +32,8 @@ const Release kHistory[] = {
         "Sync Now (Ctrl+Shift+S) and Restore from Cloud are now directly in the File menu",
         "Clearer messages when signing in fails, such as a wrong password or an account that "
         "already exists",
+        "Fixed a crash when syncing on PCs with an older Microsoft Visual C++ runtime. The "
+        "installer now includes the runtime the app needs",
         "If Asset Tracker ever crashes, it now saves a report that helps us find the cause",
     }},
     {"0.1.0", "Initial C++ Release", {

@@ -111,6 +111,24 @@ add_custom_command(TARGET asset_tracker POST_BUILD
     COMMENT "Deploying Qt runtime DLLs..."
     VERBATIM
 )
+# The Visual C++ runtime goes beside the exe. A build from a recent MSVC needs a
+# runtime at least as new, and Windows 10 PCs often have an older one in System32:
+# with msvcp140.dll 14.28 the app crashed (access violation in msvcp140) the first
+# time it locked a mutex, which was at the start of a sync. Windows loads DLLs from
+# the app folder first, so shipping these makes the installed copy self-sufficient.
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+set(CMAKE_INSTALL_UCRT_LIBRARIES FALSE)
+include(InstallRequiredSystemLibraries)
+if(NOT CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+    message(FATAL_ERROR "Could not find the Visual C++ runtime DLLs to ship with the app.")
+endif()
+message(STATUS "Shipping Visual C++ runtime: ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}")
+add_custom_command(TARGET asset_tracker POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} "$<TARGET_FILE_DIR:asset_tracker>"
+    COMMENT "Copying the Visual C++ runtime..."
+)
+
 # windeployqt only looks in the main Qt kit; this covers a separately installed add-on.
 add_custom_command(TARGET asset_tracker POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
