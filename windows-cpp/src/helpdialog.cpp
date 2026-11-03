@@ -54,15 +54,30 @@ const Entry kHelp[] = {
     {nullptr, "3. On the new PC: <b>File → Restore from Backup…</b> and enter the password."},
     {nullptr, "Restored files are encrypted for your account on the new PC automatically."},
 
-    {"Cloud sync and restore", nullptr},
-    {nullptr, "<b>File → Sync to Cloud (Firebase)…</b> encrypts your assets with your sync "
-              "password before they leave this PC. Google stores only ciphertext. Your Firebase "
-              "and sync passwords are stored encrypted for your Windows account."},
-    {nullptr, "If you have lost this PC, install Asset Tracker on a new one, enter the same "
-              "Firebase details and sync password, and choose <b>Restore from Cloud…</b>. "
-              "If the sync password is lost, the cloud copy cannot be recovered."},
-    {nullptr, "When the cloud holds assets this PC does not, Sync asks before deleting them. "
-              "Answer No if this PC is missing data that you want to keep."},
+    {"Online sync", nullptr},
+    {nullptr, "Online sync keeps an encrypted copy of your inventory on the internet. Set it up "
+              "when Asset Tracker first starts, or any time from <b>File → Preferences…</b>: "
+              "create an account with your email address, then choose a <b>sync password</b>."},
+    {nullptr, "Everything is locked with your sync password before it leaves this PC, so nobody "
+              "else can open it. <b>Write the sync password down.</b> It can't be reset or "
+              "recovered, and without it your online copy can never be opened again."},
+    {nullptr, "Use <b>File → Sync Now</b> after making changes. Only what changed since your last "
+              "sync is uploaded."},
+    {nullptr, "When the online copy holds items this PC doesn't, Sync asks before deleting them. "
+              "Answer No if this PC is missing data you want to keep."},
+
+    {"Restoring on a new computer", nullptr},
+    {nullptr, "Install Asset Tracker, sign in with <b>I already have an account</b>, enter your "
+              "sync password, then choose <b>File → Restore from Cloud…</b>. Anything already on "
+              "that computer is moved to a separate folder first, not deleted."},
+
+    {"Managing your account", nullptr},
+    {nullptr, "<b>File → Preferences…</b> lets you change your account password, have a reset "
+              "link emailed to you, remember or change your sync password, sign out, and delete "
+              "your online data or your whole account."},
+    {nullptr, "<b>Deleting is permanent.</b> Delete Online Data removes everything stored online "
+              "but keeps your account. Delete Account removes the online data and the account. "
+              "Neither touches the data on this PC."},
 
     {"Security reminder", nullptr},
     {nullptr, "Unencrypted files exported via <b>File → Export Asset Files…</b> should be "

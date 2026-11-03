@@ -38,6 +38,18 @@ QPushButton#primary:hover, QPushButton[primary="true"]:hover { background: @acce
 QPushButton#primary:pressed, QPushButton[primary="true"]:pressed { background: #111C28; }
 QPushButton#primary:disabled, QPushButton[primary="true"]:disabled { color: #DDE2E8; background: #8A96A3; border-color: #8A96A3; }
 
+QPushButton[danger="true"] { color: #B42318; }
+QPushButton[danger="true"]:hover { background: #FDF0EE; border-color: #F1B9B2; }
+QPushButton[danger="true"]:disabled { color: #A6AFBA; }
+
+QGroupBox {
+    color: @text; font-weight: 600; background: @surface;
+    border: 1px solid @border; border-radius: 6px;
+    margin-top: 14px; padding: 12px 10px 8px 10px;
+}
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
+QRadioButton { color: @text; spacing: 6px; }
+
 QPushButton#flat { border-color: transparent; background: transparent; }
 QPushButton#flat:hover { background: #EEF2F6; border-color: transparent; }
 QPushButton#flat:disabled { background: transparent; border-color: transparent; }
@@ -155,9 +167,9 @@ QFrame#rule { color: @border; background: @border; max-height: 1px; border: none
 
 } // namespace
 
-void Theme::markPrimary(QPushButton *button) {
-    button->setProperty("primary", true);
-    button->setDefault(true);
+void Theme::markPrimary(QPushButton *button, bool primary) {
+    button->setProperty("primary", primary);
+    button->setDefault(primary);
     // A button box has already polished its buttons by the time we get them, and
     // a stylesheet is only matched against properties at polish time.
     button->style()->unpolish(button);

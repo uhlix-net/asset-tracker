@@ -17,6 +17,23 @@ struct Release {
 
 // Newest first.
 const Release kHistory[] = {
+    {"0.2.0", "Online Accounts and Faster Sync", {
+        "Create your online sync account from inside the app. A short setup runs the first "
+        "time Asset Tracker starts, or any time from File → Preferences",
+        "Sign in to an existing account on a new PC, with a link to reset a forgotten password",
+        "New File → Preferences: change your account password, have a reset link emailed to "
+        "you, remember or change your sync password, sign out, and switch accounts",
+        "Delete Online Data removes everything stored online but keeps your account. Delete "
+        "Account removes the online data and the account. Both warn that this is permanent and "
+        "ask you to type DELETE to confirm",
+        "Sync uploads only what changed since your last sync, so it is much faster after the "
+        "first time. Anything missing from your online copy is sent again automatically",
+        "After a Restore from Cloud, the next sync has nothing to upload",
+        "Sync Now (Ctrl+Shift+S) and Restore from Cloud are now directly in the File menu",
+        "Clearer messages when signing in fails, such as a wrong password or an account that "
+        "already exists",
+        "If Asset Tracker ever crashes, it now saves a report that helps us find the cause",
+    }},
     {"0.1.0", "Initial C++ Release", {
         "Rewritten in C++ and Qt 6 for speed. Existing data, settings and cloud copies carry "
         "over unchanged",

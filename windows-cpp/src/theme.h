@@ -24,6 +24,6 @@ inline const QColor kDanger("#B42318");
 void apply(QApplication &app);
 
 // The one emphasised action in a dialog: filled navy, and the Enter default.
-void markPrimary(QPushButton *button);
+void markPrimary(QPushButton *button, bool primary = true);
 
 } // namespace Theme

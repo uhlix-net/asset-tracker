@@ -128,6 +128,11 @@ void Database::createSchema() {
             encrypted   INTEGER NOT NULL DEFAULT 0
         ))");
     run(db, "CREATE INDEX IF NOT EXISTS idx_af_asset_id ON asset_files(asset_id)");
+    run(db, R"(
+        CREATE TABLE IF NOT EXISTS sync_state (
+            key         TEXT PRIMARY KEY,
+            fingerprint TEXT NOT NULL
+        ))");
 }
 
 // Adds columns introduced after the first release to existing databases.
@@ -286,6 +291,45 @@ void Database::deleteAsset(const QString &assetId) {
     q.prepare("DELETE FROM assets WHERE id = ?");
     q.addBindValue(assetId);
     run(q);
+}
+
+namespace {
+const char kTargetKey[] = "@target";
+}
+
+SyncState Database::loadSyncState() {
+    QSqlQuery q(QSqlDatabase::database(m_connection));
+    q.setForwardOnly(true);
+    if (!q.exec("SELECT key, fingerprint FROM sync_state")) fail(q.lastError());
+    SyncState state;
+    while (q.next()) {
+        const QString key = q.value(0).toString();
+        if (key == kTargetKey) state.target = q.value(1).toString();
+        else state.fingerprints.insert(key, q.value(1).toString());
+    }
+    return state;
+}
+
+void Database::saveSyncState(const SyncState &state) {
+    QSqlDatabase db = QSqlDatabase::database(m_connection);
+    if (!db.transaction()) fail(db.lastError());
+    try {
+        run(db, "DELETE FROM sync_state");
+        QSqlQuery q(db);
+        q.prepare("INSERT INTO sync_state (key, fingerprint) VALUES (?, ?)");
+        const auto insert = [&q](const QString &key, const QString &value) {
+            q.addBindValue(key);
+            q.addBindValue(value);
+            run(q);
+        };
+        if (!state.target.isEmpty()) insert(kTargetKey, state.target);
+        for (auto it = state.fingerprints.cbegin(); it != state.fingerprints.cend(); ++it)
+            insert(it.key(), it.value());
+    } catch (...) {
+        db.rollback();
+        throw;
+    }
+    if (!db.commit()) fail(db.lastError());
 }
 
 void Database::deleteAssetFile(qint64 fileId) {

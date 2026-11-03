@@ -1,5 +1,6 @@
 #pragma once
 #include <QByteArray>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QString>
 #include <QStringList>
@@ -15,13 +16,20 @@ struct FirebaseConfig {
 };
 
 // Blocking Firebase REST calls for use on a worker thread. Everything lives under
-// users/{uid}/ and each call throws std::runtime_error on failure. Messages never
-// include the API key, which travels in a query string.
+// users/{uid}/ and each call throws std::runtime_error on failure, with a message
+// written for the user. Messages never include the API key, which travels in a
+// query string.
 class FirebaseClient {
 public:
     explicit FirebaseClient(const FirebaseConfig &config);
 
-    void authenticate();
+    // Account calls. Each signs the client in, except sendPasswordReset.
+    void authenticate();                          // Sign in with config email + password.
+    void createAccount();                         // Sign up with config email + password.
+    void sendPasswordReset(const QString &email);
+    void changePassword(const QString &newPassword);
+    void deleteAccount();                         // Removes the login itself. Signed in only.
+    QString uid() const { return m_uid; }
 
     struct Document {
         QString id;
@@ -46,11 +54,14 @@ private:
     Reply send(const QByteArray &verb, const QByteArray &encodedUrl, const QByteArray &body,
                const QByteArray &contentType, int timeoutMs);
 
-    QByteArray authUrl() const;
+    QByteArray authUrl(const char *operation) const;
+    QJsonObject callAuth(const char *operation, const QJsonObject &body);
+    void takeSession(const QJsonObject &reply);
     QByteArray documentUrl(const QString &collection, const QString &id = QString()) const;
     QByteArray objectsUrl() const;
     QString objectName(const QString &path) const;
     static QString detail(const Reply &reply);
+    static QString authMessage(const QString &code);
 
     FirebaseConfig m_config;
     QNetworkAccessManager m_network;

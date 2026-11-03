@@ -33,6 +33,27 @@ cd installer && "C:\Program Files (x86)\NSIS\makensis.exe" setup.nsi
 The version is set in one place, `project()` in `CMakeLists.txt`. Editing `CMakeLists.txt`
 or `vcpkg.json` calls for a full rebuild: delete `build\` and run all three steps.
 
+## Online sync backend
+
+Every user has an account in one shared Firebase project, which is the app's backend.
+By default the project's API key, project ID and storage bucket are entered at first
+start (and can be changed under File → Preferences). For a production build, bake
+them in and hide them from users:
+
+```cmd
+cmake -B build ... ^
+  -DASSET_TRACKER_FIREBASE_API_KEY=<web API key> ^
+  -DASSET_TRACKER_FIREBASE_PROJECT_ID=<project id> ^
+  -DASSET_TRACKER_FIREBASE_BUCKET=<project id>.firebasestorage.app ^
+  -DASSET_TRACKER_FIREBASE_LOCKED=ON
+```
+
+Without `LOCKED`, the same three values are only suggestions that users can change.
+The project needs Email/Password sign-in turned on, with sign-up allowed, and the
+per-user Firestore and Storage rules (`users/{uid}/...`). Sync only sends what changed:
+`SyncState` fingerprints are kept in the `sync_state` table and checked against what
+the cloud actually holds.
+
 ## Look and feel
 
 All colours, fonts and the stylesheet live in `src/theme.cpp`; icons are drawn in

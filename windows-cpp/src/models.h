@@ -1,4 +1,5 @@
 #pragma once
+#include <QHash>
 #include <QString>
 #include <QVector>
 #include <optional>
@@ -36,6 +37,15 @@ struct AssetFile {
     QString storedName;                  // Filename inside the asset's directory
     QString dateAdded;                   // ISO-8601 UTC
     bool encrypted = false;              // True when stored with Windows DPAPI
+};
+
+// What this PC last uploaded, so a sync only sends what changed. Fingerprints are
+// keyed "asset/<id>", "file/<id>/<stored name>" and "manifest". target identifies
+// the project, account and sync key they belong to; any change there makes the
+// whole state stale.
+struct SyncState {
+    QString target;
+    QHash<QString, QString> fingerprints;
 };
 
 struct AssetRecord {
